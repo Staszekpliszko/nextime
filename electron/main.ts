@@ -9,6 +9,8 @@ import { createHttpServer } from './http-server';
 import { SenderManager } from './senders';
 import { SettingsManager } from './settings-manager';
 import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
+import { registerWindowIpcHandlers } from './ipc/window-ipc';
+import { WindowManager } from './window-manager';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
 import {
@@ -43,6 +45,7 @@ let wsServer: RundownWsServer | null = null;
 let httpServer: Server | null = null;
 let senderManager: SenderManager | null = null;
 let settingsManager: SettingsManager | null = null;
+let windowManager: WindowManager | null = null;
 let wsPort = 3141;
 
 // Repozytoria — inicjalizowane po otwarciu bazy
@@ -206,6 +209,10 @@ function registerIpcHandlers(): void {
   if (settingsManager && senderManager) {
     registerSettingsIpcHandlers(settingsManager, senderManager);
   }
+
+  // Faza 19: Window IPC (zarządzanie oknami prompter/output)
+  windowManager = new WindowManager(PRELOAD_PATH);
+  registerWindowIpcHandlers(windowManager, () => 3142);
 
   ipcMain.handle('nextime:getRundowns', () => {
     const rundowns = rundownRepo.findAll();
@@ -1112,6 +1119,8 @@ function createWindow(): void {
   });
 
   mainWindow.on('closed', () => {
+    // Faza 19: zamknij wszystkie dodatkowe okna przy zamknięciu głównego
+    if (windowManager) windowManager.closeAll();
     mainWindow = null;
   });
 }
@@ -1140,6 +1149,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', async () => {
   // Cleanup: zamknij wszystkie serwisy
+  if (windowManager) windowManager.closeAll();
   if (senderManager) senderManager.destroy();
   if (engine) engine.destroy();
   if (wsServer) await wsServer.stop();

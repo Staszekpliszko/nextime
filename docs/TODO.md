@@ -1249,15 +1249,19 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 19 — Multi-Window (Prompter + Output) [PLANOWANA]
+## Faza 19 — Multi-Window (Prompter + Output) [UKOŃCZONA]
 
-- [ ] `electron/main.ts` — Map<string, BrowserWindow> dla dodatkowych okien
-- [ ] IPC: nextime:openOutputWindow, nextime:openPrompterWindow, nextime:closeOutputWindow
-- [ ] Prompter window: alwaysOnTop, fullscreen, osobny monitor
-- [ ] Output window: CueApp/Single view jako lokalne okno Electron
-- [ ] Przycisk "Otwórz w nowym oknie" w OutputPanel
-- [ ] Cleanup okien przy zamknięciu głównego
-- [ ] Testy: ~8
+- [x] `electron/window-manager.ts` — WindowManager z Map<string, BrowserWindow> dla dodatkowych okien
+- [x] `electron/ipc/window-ipc.ts` — IPC handlery: nextime:openPrompterWindow, nextime:openOutputWindow, nextime:closeWindow, nextime:getDisplays, nextime:getOpenWindows
+- [x] Prompter window: fullscreen, alwaysOnTop, osobny monitor, F11 toggle, Escape zamyka
+- [x] Output window: CueApp/Single view jako lokalne okno Electron, wielu jednocześnie
+- [x] Przycisk "Okno" w OutputPanel z wyborem monitora dla promptera
+- [x] Cleanup okien przy zamknięciu głównego (mainWindow.on('closed') + before-quit)
+- [x] Preload + electron.d.ts — 5 nowych metod IPC
+- [x] Testy: 9 (WindowManager — monitory, tworzenie okien, zamykanie, cleanup)
+
+**Statystyki Fazy 19:** 9 nowych testów, 3 nowe pliki, 4 zmodyfikowane
+**ŁĄCZNIE:** 656 testów, 54 pliki testów
 
 ---
 
@@ -1345,7 +1349,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | 16 (Undo/Redo) | 26 ✅ | UKOŃCZONA |
 | 17 (OSC + MIDI) | 41 ✅ | UKOŃCZONA |
 | 18 (Settings Panel) | 17 ✅ | UKOŃCZONA |
-| 19 (Multi-Window) | ~8 | ŚREDNI |
+| 19 (Multi-Window) | 9 ✅ | UKOŃCZONA |
 | 20 (Electron-Builder) | ~3 | KRYTYCZNY |
 | 21 (E2E Testy) | ~18 | ŚREDNI |
 | 22 (GPI + LTC + PTZ) | ~15 | NISKI |

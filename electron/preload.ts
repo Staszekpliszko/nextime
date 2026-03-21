@@ -368,4 +368,25 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Aktualizuje ustawienia sekcji i propaguje do sendera */
   updateSettings: (section: string, values: Record<string, unknown>): Promise<void> =>
     ipcRenderer.invoke('nextime:updateSettings', section, values),
+
+  // ── Multi-Window (Faza 19) ────────────────────────────────────
+  /** Pobiera listę dostępnych monitorów */
+  getDisplays: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:getDisplays'),
+
+  /** Otwiera okno promptera (fullscreen, alwaysOnTop) */
+  openPrompterWindow: (shareToken: string, displayId?: number): Promise<{ ok: boolean; windowId: string }> =>
+    ipcRenderer.invoke('nextime:openPrompterWindow', shareToken, displayId),
+
+  /** Otwiera okno output (CueApp/Single view) */
+  openOutputWindow: (shareToken: string, outputName: string): Promise<{ ok: boolean; windowId: string }> =>
+    ipcRenderer.invoke('nextime:openOutputWindow', shareToken, outputName),
+
+  /** Zamyka dodatkowe okno po ID */
+  closeWindow: (windowId: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:closeWindow', windowId),
+
+  /** Pobiera listę otwartych dodatkowych okien */
+  getOpenWindows: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:getOpenWindows'),
 });

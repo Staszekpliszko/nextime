@@ -7,6 +7,7 @@ import type { Track, CreateTrackInput, UpdateTrackInput } from '../../electron/d
 import type { TimelineCue, CreateTimelineCueInput, UpdateTimelineCueInput } from '../../electron/db/repositories/timeline-cue.repo';
 import type { AtemStatus } from '../../electron/senders/atem-sender';
 import type { AllSettings, SettingsSection } from '../../electron/settings-manager';
+import type { DisplayInfo, OpenWindowInfo } from '../../electron/window-manager';
 import type { TextVariable, CreateTextVariableInput, UpdateTextVariableInput } from '../../electron/db/repositories/text-variable.repo';
 import type { CueGroup, CreateCueGroupInput, UpdateCueGroupInput } from '../../electron/db/repositories/cue-group.repo';
 import type { LtcReaderStatus } from '../../electron/senders/ltc-reader';
@@ -158,6 +159,13 @@ export interface NextimeApi {
   getSettings(): Promise<AllSettings>;
   getSettingsSection<S extends SettingsSection>(section: S): Promise<AllSettings[S]>;
   updateSettings<S extends SettingsSection>(section: S, values: Partial<AllSettings[S]>): Promise<void>;
+
+  // ── Multi-Window (Faza 19) ──────────────────────────────────
+  getDisplays(): Promise<DisplayInfo[]>;
+  openPrompterWindow(shareToken: string, displayId?: number): Promise<{ ok: boolean; windowId: string }>;
+  openOutputWindow(shareToken: string, outputName: string): Promise<{ ok: boolean; windowId: string }>;
+  closeWindow(windowId: string): Promise<{ ok: boolean }>;
+  getOpenWindows(): Promise<OpenWindowInfo[]>;
 }
 
 declare global {

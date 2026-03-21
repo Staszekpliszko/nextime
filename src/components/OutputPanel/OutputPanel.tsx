@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
 import type { OutputConfigSummary } from '@/store/playback.store';
+import type { DisplayInfo } from '../../../electron/window-manager';
 
 // ── Typy ──────────────────────────────────────────────────────
 
@@ -39,16 +40,21 @@ export function OutputPanel({ onClose }: OutputPanelProps) {
   // Formularz edycji ustawień
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Ładowanie danych — output configs + kolumny + httpPort
+  // Faza 19: monitory + wybór monitora dla promptera
+  const [displays, setDisplays] = useState<DisplayInfo[]>([]);
+  const [prompterDisplayPicker, setPrompterDisplayPicker] = useState<string | null>(null);
+
+  // Ładowanie danych — output configs + kolumny + httpPort + monitory
   useEffect(() => {
     if (!activeRundownId) return;
 
     async function load() {
       try {
-        const [configs, cols, port] = await Promise.all([
+        const [configs, cols, port, disps] = await Promise.all([
           window.nextime.getOutputConfigs(activeRundownId!),
           window.nextime.getColumns(activeRundownId!),
           window.nextime.getHttpPort(),
+          window.nextime.getDisplays(),
         ]);
 
         setOutputConfigs(configs.map(c => ({
@@ -71,6 +77,7 @@ export function OutputPanel({ onClose }: OutputPanelProps) {
         })));
 
         setHttpPort(port);
+        setDisplays(disps);
       } catch (err) {
         console.error('[OutputPanel] Błąd ładowania:', err);
       }
@@ -160,6 +167,35 @@ export function OutputPanel({ onClose }: OutputPanelProps) {
     }
   }, [updateOutputConfigStore]);
 
+  // Faza 19: otwieranie w osobnym oknie Electron
+  const handleOpenInWindow = useCallback(async (config: OutputConfigSummary) => {
+    try {
+      if (config.layout === 'prompter') {
+        // Pokaż picker monitora jeśli jest >1 monitor
+        if (displays.length > 1) {
+          setPrompterDisplayPicker(config.share_token);
+          return;
+        }
+        // Jeden monitor — otwórz od razu
+        await window.nextime.openPrompterWindow(config.share_token);
+      } else {
+        await window.nextime.openOutputWindow(config.share_token, config.name);
+      }
+    } catch (err) {
+      console.error('[OutputPanel] Błąd otwierania okna:', err);
+    }
+  }, [displays.length]);
+
+  // Faza 19: otwieranie promptera na wybranym monitorze
+  const handleOpenPrompterOnDisplay = useCallback(async (shareToken: string, displayId: number) => {
+    try {
+      await window.nextime.openPrompterWindow(shareToken, displayId);
+      setPrompterDisplayPicker(null);
+    } catch (err) {
+      console.error('[OutputPanel] Błąd otwierania promptera:', err);
+    }
+  }, []);
+
   // Ikona layoutu
   const layoutIcon = (layout: OutputLayout): string => {
     switch (layout) {
@@ -235,6 +271,13 @@ export function OutputPanel({ onClose }: OutputPanelProps) {
                   Otwórz
                 </button>
                 <button
+                  onClick={() => handleOpenInWindow(config)}
+                  className="px-2 py-1 text-[11px] text-emerald-400 hover:text-emerald-300 bg-slate-700 rounded hover:bg-emerald-900/30"
+                  title={config.layout === 'prompter' ? 'Otwórz w oknie promptera' : 'Otwórz w nowym oknie'}
+                >
+                  Okno
+                </button>
+                <button
                   onClick={() => setEditingId(editingId === config.id ? null : config.id)}
                   className="px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200 bg-slate-700 rounded hover:bg-slate-600"
                 >
@@ -252,6 +295,34 @@ export function OutputPanel({ onClose }: OutputPanelProps) {
               <div className="mt-2 text-[11px] text-slate-500 font-mono truncate">
                 http://localhost:{httpPort}/output/{config.share_token}
               </div>
+
+              {/* Faza 19: picker monitora dla promptera */}
+              {prompterDisplayPicker === config.share_token && (
+                <div className="mt-2 p-3 bg-slate-700/50 rounded border border-emerald-600/30">
+                  <p className="text-[11px] text-slate-300 mb-2">Wybierz monitor dla promptera:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {displays.map(d => (
+                      <button
+                        key={d.id}
+                        onClick={() => handleOpenPrompterOnDisplay(config.share_token, d.id)}
+                        className={`px-3 py-1.5 text-[11px] rounded border transition-colors ${
+                          d.isPrimary
+                            ? 'border-slate-500 text-slate-300 hover:bg-slate-600'
+                            : 'border-emerald-600/50 text-emerald-400 hover:bg-emerald-900/30'
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setPrompterDisplayPicker(null)}
+                    className="mt-2 text-[10px] text-slate-500 hover:text-slate-300"
+                  >
+                    Anuluj
+                  </button>
+                </div>
+              )}
 
               {/* Panel ustawień (rozwijany) */}
               {editingId === config.id && (

@@ -121,6 +121,23 @@ export function createCueRepo(db: Database.Database) {
       return this.findById(id)!;
     },
 
+    /** Faza 16: odtwórz cue z konkretnym ID (undo/redo) */
+    createWithId(id: string, input: CreateCueInput): Cue {
+      db.prepare(`
+        INSERT INTO cues (id, rundown_id, group_id, sort_order, title, subtitle, duration_ms, start_type, hard_start_datetime, auto_start, locked, background_color, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, input.rundown_id, input.group_id ?? null,
+        input.sort_order ?? 0, input.title ?? '', input.subtitle ?? '',
+        input.duration_ms ?? 0, input.start_type ?? 'soft',
+        input.hard_start_datetime ?? null,
+        fromBool(input.auto_start ?? false), fromBool(input.locked ?? false),
+        input.background_color ?? null,
+        input.status ?? 'ready',
+      );
+      return this.findById(id)!;
+    },
+
     findById(id: string): Cue | undefined {
       const row = db.prepare('SELECT * FROM cues WHERE id = ?').get(id) as CueRow | undefined;
       return row ? rowToCue(row) : undefined;

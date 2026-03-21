@@ -51,6 +51,15 @@ export function createCueGroupRepo(db: Database.Database) {
       return this.findById(id)!;
     },
 
+    /** Faza 16: odtwórz grupę z konkretnym ID (undo/redo) */
+    createWithId(id: string, input: CreateCueGroupInput): CueGroup {
+      db.prepare(`
+        INSERT INTO cue_groups (id, rundown_id, label, sort_order, collapsed, color)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, input.rundown_id, input.label, input.sort_order ?? 0, fromBool(input.collapsed ?? false), input.color ?? null);
+      return this.findById(id)!;
+    },
+
     findById(id: string): CueGroup | undefined {
       const row = db.prepare('SELECT * FROM cue_groups WHERE id = ?').get(id) as CueGroupRow | undefined;
       return row ? rowToCueGroup(row) : undefined;

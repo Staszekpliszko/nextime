@@ -13,6 +13,8 @@ const SHORTCUTS: ShortcutEntry[] = [
   { key: 'Space', description: 'Play / Pause', mode: 'global' },
   { key: 'Escape', description: 'Odznacz cue / zamknij panel', mode: 'global' },
   { key: '?', description: 'Pomoc skrótów klawiszowych', mode: 'global' },
+  { key: 'Ctrl+Z', description: 'Cofnij ostatnią operację', mode: 'global' },
+  { key: 'Ctrl+Shift+Z', description: 'Przywróć cofniętą operację', mode: 'global' },
 
   // Rundown
   { key: 'Click', description: 'Goto cue', mode: 'rundown' },

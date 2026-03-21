@@ -126,6 +126,11 @@ export interface NextimeApi {
   exportRundown(rundownId: string): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }>;
   importRundown(): Promise<{ ok: boolean; rundownId?: string; error?: string; canceled?: boolean }>;
 
+  // ── Undo / Redo (Faza 16) ──────────────────────────────
+  undo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;
+  redo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;
+  getUndoState(): Promise<{ canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }>;
+
   // ── ATEM ────────────────────────────────────────────────
   atemGetStatus(): Promise<AtemStatus>;
   atemConfigure(config: Record<string, unknown>): Promise<void>;

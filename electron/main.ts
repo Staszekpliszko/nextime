@@ -9,6 +9,14 @@ import { createHttpServer } from './http-server';
 import { SenderManager } from './senders';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
+import {
+  UndoManager,
+  createCueCommand, deleteCueCommand, updateCueCommand, reorderCuesCommand,
+  createColumnCommand, deleteColumnCommand, updateColumnCommand,
+  updateCellCommand,
+  createCueGroupCommand, deleteCueGroupCommand, updateCueGroupCommand,
+  createTextVariableCommand, deleteTextVariableCommand, updateTextVariableCommand,
+} from './undo-manager';
 import fs from 'fs';
 import type { AtemSenderConfig } from './senders/atem-sender';
 import type { Server } from 'http';
@@ -52,6 +60,9 @@ let privateNoteRepo: ReturnType<typeof createPrivateNoteRepo>;
 
 // Domyślny user ID — ustalany po seedowaniu (brak auth, single-user)
 let localUserId = '';
+
+// Undo/Redo manager — globalny dla sesji
+const undoManager = new UndoManager();
 
 // ── Ścieżka do preload ─────────────────────────────────────
 const PRELOAD_PATH = path.join(__dirname, 'preload.js');
@@ -216,6 +227,9 @@ function registerIpcHandlers(): void {
     }
     const cue = cueRepo.create(input);
 
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(createCueCommand(cue, { cueRepo, cellRepo }));
+
     // Broadcast delta do klientów WS
     if (wsServer) {
       const change: RundownChange = {
@@ -244,8 +258,21 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('nextime:updateCue', (_event, id: string, input: UpdateCueInput) => {
+    // Faza 16: pobierz stare dane przed update
+    const oldCue = cueRepo.findById(id);
     const cue = cueRepo.update(id, input);
     if (!cue) return undefined;
+
+    // Faza 16: rejestracja undo — odtwórz stare pola
+    if (oldCue) {
+      const oldData: Partial<Omit<CreateCueInput, 'rundown_id'>> = {};
+      const newData: Partial<Omit<CreateCueInput, 'rundown_id'>> = {};
+      for (const key of Object.keys(input) as Array<keyof UpdateCueInput>) {
+        (oldData as unknown as Record<string, unknown>)[key] = (oldCue as unknown as Record<string, unknown>)[key];
+        (newData as unknown as Record<string, unknown>)[key] = input[key];
+      }
+      undoManager.pushCommand(updateCueCommand(id, oldData, newData, { cueRepo }, oldCue.title));
+    }
 
     // Broadcast delta
     if (wsServer) {
@@ -279,14 +306,19 @@ function registerIpcHandlers(): void {
     const cue = cueRepo.findById(id);
     if (!cue) return false;
 
+    // Faza 16: snapshot cells przed usunięciem (cascade delete usunie komórki)
+    const cells = cellRepo.findByCue(id);
+
     const deleted = cueRepo.delete(id);
 
-    if (deleted && wsServer) {
-      const change: RundownChange = { op: 'cue_deleted', cue_id: id };
-      wsServer.broadcastDelta(cue.rundown_id, [change]);
-    }
-
     if (deleted) {
+      // Faza 16: rejestracja undo
+      undoManager.pushCommand(deleteCueCommand({ cue, cells }, { cueRepo, cellRepo }));
+
+      if (wsServer) {
+        const change: RundownChange = { op: 'cue_deleted', cue_id: id };
+        wsServer.broadcastDelta(cue.rundown_id, [change]);
+      }
       reloadEngineIfActive(cue.rundown_id);
     }
 
@@ -294,7 +326,13 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('nextime:reorderCues', (_event, rundownId: string, cueIds: string[]) => {
+    // Faza 16: pobierz starą kolejność przed reorderem
+    const oldOrder = cueRepo.findByRundown(rundownId).map(c => c.id);
+
     cueRepo.reorder(rundownId, cueIds);
+
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(reorderCuesCommand(rundownId, oldOrder, cueIds, { cueRepo }));
 
     // Broadcast delta — po reorder wysyłamy cue_moved dla każdego
     if (wsServer) {
@@ -478,6 +516,9 @@ function registerIpcHandlers(): void {
     }
     const column = columnRepo.create(input);
 
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(createColumnCommand(column, { columnRepo }));
+
     if (wsServer) {
       const change: RundownChange = {
         op: 'column_added',
@@ -493,16 +534,37 @@ function registerIpcHandlers(): void {
     if (input.name !== undefined && !input.name.trim()) {
       throw new Error('Nazwa kolumny nie może być pusta');
     }
-    return columnRepo.update(id, input);
+    // Faza 16: pobierz stare dane
+    const oldColumn = columnRepo.findById(id);
+    const result = columnRepo.update(id, input);
+
+    if (oldColumn && result) {
+      const oldData: Partial<Omit<CreateColumnInput, 'rundown_id'>> = {};
+      const newData: Partial<Omit<CreateColumnInput, 'rundown_id'>> = {};
+      for (const key of Object.keys(input) as Array<keyof UpdateColumnInput>) {
+        (oldData as unknown as Record<string, unknown>)[key] = (oldColumn as unknown as Record<string, unknown>)[key];
+        (newData as unknown as Record<string, unknown>)[key] = input[key];
+      }
+      undoManager.pushCommand(updateColumnCommand(id, oldData, newData, { columnRepo }, oldColumn.name));
+    }
+
+    return result;
   });
 
   ipcMain.handle('nextime:deleteColumn', (_event, id: string) => {
     const column = columnRepo.findById(id);
+    if (!column) return false;
+
     const deleted = columnRepo.delete(id);
 
-    if (deleted && wsServer && column) {
-      const change: RundownChange = { op: 'column_deleted', column_id: id };
-      wsServer.broadcastDelta(column.rundown_id, [change]);
+    if (deleted) {
+      // Faza 16: rejestracja undo
+      undoManager.pushCommand(deleteColumnCommand(column, { columnRepo }));
+
+      if (wsServer) {
+        const change: RundownChange = { op: 'column_deleted', column_id: id };
+        wsServer.broadcastDelta(column.rundown_id, [change]);
+      }
     }
 
     return deleted;
@@ -524,6 +586,16 @@ function registerIpcHandlers(): void {
     dropdown_value?: string;
     file_ref?: string;
   }) => {
+    // Faza 16: pobierz starą komórkę
+    const existingCells = cellRepo.findByCue(cueId);
+    const oldCell = existingCells.find(c => c.column_id === columnId);
+    const oldCellData = oldCell ? {
+      content_type: oldCell.content_type,
+      richtext: oldCell.richtext,
+      dropdown_value: oldCell.dropdown_value,
+      file_ref: oldCell.file_ref,
+    } : null;
+
     const cell = cellRepo.upsert({
       cue_id: cueId,
       column_id: columnId,
@@ -532,6 +604,19 @@ function registerIpcHandlers(): void {
       dropdown_value: content.dropdown_value,
       file_ref: content.file_ref,
     });
+
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(updateCellCommand(
+      cueId, columnId,
+      oldCellData,
+      {
+        content_type: content.content_type as 'richtext' | 'dropdown_value' | 'file_ref' | undefined,
+        richtext: content.richtext,
+        dropdown_value: content.dropdown_value,
+        file_ref: content.file_ref,
+      },
+      { cellRepo },
+    ));
 
     // Broadcast delta do WS klientów — potrzebujemy rundown_id z cue
     if (wsServer) {
@@ -625,6 +710,9 @@ function registerIpcHandlers(): void {
     }
     const variable = textVariableRepo.create(input);
 
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(createTextVariableCommand(variable, { textVariableRepo }));
+
     // Broadcast zmiana zmiennych
     if (wsServer) {
       wsServer.broadcastDelta(input.rundown_id, [{
@@ -637,8 +725,26 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('nextime:updateTextVariable', (_event, id: string, input: UpdateTextVariableInput) => {
+    // Faza 16: pobierz stare dane
+    const oldVar = textVariableRepo.findById(id);
+
     const variable = textVariableRepo.update(id, input);
     if (!variable) return undefined;
+
+    // Faza 16: rejestracja undo
+    if (oldVar) {
+      const oldData: { value?: string; description?: string } = {};
+      const newData: { value?: string; description?: string } = {};
+      if (input.value !== undefined) {
+        oldData.value = oldVar.value;
+        newData.value = input.value;
+      }
+      if (input.description !== undefined) {
+        oldData.description = oldVar.description;
+        newData.description = input.description;
+      }
+      undoManager.pushCommand(updateTextVariableCommand(id, oldData, newData, { textVariableRepo }, oldVar.key));
+    }
 
     // Broadcast zmiana zmiennych
     if (wsServer) {
@@ -659,11 +765,16 @@ function registerIpcHandlers(): void {
     if (!variable) return false;
     const deleted = textVariableRepo.delete(id);
 
-    if (deleted && wsServer) {
-      wsServer.broadcastDelta(variable.rundown_id, [{
-        op: 'variable_changed' as RundownChange['op'],
-        variable: { key: variable.key, value: '' },
-      } as RundownChange]);
+    if (deleted) {
+      // Faza 16: rejestracja undo
+      undoManager.pushCommand(deleteTextVariableCommand(variable, { textVariableRepo }));
+
+      if (wsServer) {
+        wsServer.broadcastDelta(variable.rundown_id, [{
+          op: 'variable_changed' as RundownChange['op'],
+          variable: { key: variable.key, value: '' },
+        } as RundownChange]);
+      }
     }
 
     return deleted;
@@ -685,6 +796,9 @@ function registerIpcHandlers(): void {
     }
     const group = cueGroupRepo.create(input);
 
+    // Faza 16: rejestracja undo
+    undoManager.pushCommand(createCueGroupCommand(group, { cueGroupRepo }));
+
     if (wsServer) {
       const change: RundownChange = {
         op: 'group_added',
@@ -697,7 +811,21 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('nextime:updateCueGroup', (_event, id: string, input: UpdateCueGroupInput) => {
-    return cueGroupRepo.update(id, input);
+    // Faza 16: pobierz stare dane
+    const oldGroup = cueGroupRepo.findById(id);
+    const result = cueGroupRepo.update(id, input);
+
+    if (oldGroup && result) {
+      const oldData: Partial<Omit<CreateCueGroupInput, 'rundown_id'>> = {};
+      const newData: Partial<Omit<CreateCueGroupInput, 'rundown_id'>> = {};
+      for (const key of Object.keys(input) as Array<keyof UpdateCueGroupInput>) {
+        (oldData as unknown as Record<string, unknown>)[key] = (oldGroup as unknown as Record<string, unknown>)[key];
+        (newData as unknown as Record<string, unknown>)[key] = input[key];
+      }
+      undoManager.pushCommand(updateCueGroupCommand(id, oldData, newData, { cueGroupRepo }, oldGroup.label));
+    }
+
+    return result;
   });
 
   ipcMain.handle('nextime:deleteCueGroup', (_event, id: string) => {
@@ -705,9 +833,14 @@ function registerIpcHandlers(): void {
     if (!group) return false;
     const deleted = cueGroupRepo.delete(id);
 
-    if (deleted && wsServer) {
-      const change: RundownChange = { op: 'group_deleted', group_id: id };
-      wsServer.broadcastDelta(group.rundown_id, [change]);
+    if (deleted) {
+      // Faza 16: rejestracja undo
+      undoManager.pushCommand(deleteCueGroupCommand(group, { cueGroupRepo }));
+
+      if (wsServer) {
+        const change: RundownChange = { op: 'group_deleted', group_id: id };
+        wsServer.broadcastDelta(group.rundown_id, [change]);
+      }
     }
 
     return deleted;
@@ -741,6 +874,39 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('nextime:getHttpPort', () => {
     return 3142;
+  });
+
+  // ── Undo / Redo (Faza 16) ────────────────────────────────────
+
+  ipcMain.handle('nextime:undo', () => {
+    const description = undoManager.getUndoDescription();
+    const ok = undoManager.undo();
+    return {
+      ok,
+      description: ok ? description : '',
+      canUndo: undoManager.canUndo(),
+      canRedo: undoManager.canRedo(),
+    };
+  });
+
+  ipcMain.handle('nextime:redo', () => {
+    const description = undoManager.getRedoDescription();
+    const ok = undoManager.redo();
+    return {
+      ok,
+      description: ok ? description : '',
+      canUndo: undoManager.canUndo(),
+      canRedo: undoManager.canRedo(),
+    };
+  });
+
+  ipcMain.handle('nextime:getUndoState', () => {
+    return {
+      canUndo: undoManager.canUndo(),
+      canRedo: undoManager.canRedo(),
+      undoDescription: undoManager.getUndoDescription(),
+      redoDescription: undoManager.getRedoDescription(),
+    };
   });
 
   // ── Export / Import Rundownu (Faza 15) ──────────────────────

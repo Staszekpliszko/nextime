@@ -1175,16 +1175,30 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 16 — Undo/Redo System [PLANOWANA]
+## Faza 16 — Undo/Redo System [UKOŃCZONA]
 
-- [ ] `electron/undo-manager.ts` — klasa UndoManager (command pattern, limit 50 operacji)
-- [ ] IPC handlery: nextime:undo, nextime:redo, nextime:canUndo, nextime:canRedo
-- [ ] Modyfikacja istniejących CRUD handlerów — rejestracja undo po każdym create/update/delete
-- [ ] Preload bridge + electron.d.ts
-- [ ] Skróty: Ctrl+Z = undo, Ctrl+Shift+Z = redo w useKeyboardShortcuts.ts
-- [ ] Store: pola canUndo, canRedo + akcje
-- [ ] ShortcutHelp — nowe skróty
-- [ ] Testy undo-manager: ~20
+- [x] `electron/undo-manager.ts` — klasa UndoManager (command pattern, limit 50 operacji)
+  - Interfejs UndoCommand { execute, undo, description }
+  - Stosy undo/redo, pushCommand, undo(), redo(), clear(), canUndo/canRedo, getDescription
+  - 15 fabryk komend: createCue, deleteCue, updateCue, reorderCues, createColumn, deleteColumn, updateColumn, updateCell, createCueGroup, deleteCueGroup, updateCueGroup, createTextVariable, deleteTextVariable, updateTextVariable
+  - Każda komenda przechowuje PEŁNE dane do odtworzenia (snapshot)
+- [x] IPC handlery: nextime:undo, nextime:redo, nextime:getUndoState
+- [x] Modyfikacja istniejących CRUD handlerów — rejestracja undo po każdym create/update/delete
+  - createCue, updateCue, deleteCue (z snapshot cells), reorderCues
+  - createColumn, updateColumn, deleteColumn
+  - updateCell (z snapshot starej komórki)
+  - createCueGroup, updateCueGroup, deleteCueGroup
+  - createTextVariable, updateTextVariable, deleteTextVariable
+- [x] Preload bridge (undo, redo, getUndoState) + electron.d.ts
+- [x] Skróty: Ctrl+Z = undo, Ctrl+Shift+Z = redo w useKeyboardShortcuts.ts
+- [x] Store: pola canUndo, canRedo, undoDescription, redoDescription + akcja setUndoState
+- [x] ShortcutHelp — nowe skróty Ctrl+Z i Ctrl+Shift+Z
+- [x] UI: toast po undo/redo z opisem operacji + odświeżenie danych rundownu
+- [x] createWithId() w repozytoriach cue, column, cue-group, text-variable (odtwarzanie z oryginalnym ID)
+- [x] Testy undo-manager: 26 testów (6 kategorii)
+
+**Statystyki Fazy 16:** 26 nowych testów, ~500 linii nowego kodu
+**ŁĄCZNIE:** 589 testów, 50 plików testów
 
 ---
 
@@ -1302,7 +1316,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | Faza | Testy | Priorytet |
 |------|-------|-----------|
 | 15 (Seed + Export) | ~25 | WYSOKI |
-| 16 (Undo/Redo) | ~20 | WYSOKI |
+| 16 (Undo/Redo) | 26 ✅ | UKOŃCZONA |
 | 17 (OSC + MIDI) | ~15 | WYSOKI |
 | 18 (Settings Panel) | ~16 | WYSOKI |
 | 19 (Multi-Window) | ~8 | ŚREDNI |

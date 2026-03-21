@@ -94,6 +94,21 @@ export function createColumnRepo(db: Database.Database) {
       return this.findById(id)!;
     },
 
+    /** Faza 16: odtwórz kolumnę z konkretnym ID (undo/redo) */
+    createWithId(id: string, input: CreateColumnInput): Column {
+      db.prepare(`
+        INSERT INTO columns (id, rundown_id, name, type, sort_order, width_px, dropdown_options, is_script)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, input.rundown_id, input.name,
+        input.type ?? 'richtext', input.sort_order ?? 0,
+        input.width_px ?? 200,
+        input.dropdown_options ? toJson(input.dropdown_options) : null,
+        fromBool(input.is_script ?? false),
+      );
+      return this.findById(id)!;
+    },
+
     findById(id: string): Column | undefined {
       const row = db.prepare('SELECT * FROM columns WHERE id = ?').get(id) as ColumnRow | undefined;
       return row ? rowToColumn(row) : undefined;

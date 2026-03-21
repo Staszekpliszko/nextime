@@ -53,6 +53,15 @@ export function createTextVariableRepo(db: Database.Database) {
       return this.findById(id)!;
     },
 
+    /** Faza 16: odtwórz zmienną z konkretnym ID (undo/redo) */
+    createWithId(id: string, input: CreateTextVariableInput): TextVariable {
+      db.prepare(`
+        INSERT INTO text_variables (id, rundown_id, key, value, description)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, input.rundown_id, input.key, input.value ?? '', input.description ?? null);
+      return this.findById(id)!;
+    },
+
     findById(id: string): TextVariable | undefined {
       const row = db.prepare('SELECT * FROM text_variables WHERE id = ?').get(id) as TextVariableRow | undefined;
       return row ? rowToTextVariable(row) : undefined;

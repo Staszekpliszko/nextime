@@ -300,4 +300,17 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Importuje rundown z pliku .nextime.json (dialog Open File) */
   importRundown: (): Promise<{ ok: boolean; rundownId?: string; error?: string; canceled?: boolean }> =>
     ipcRenderer.invoke('nextime:importRundown'),
+
+  // ── Undo / Redo (Faza 16) ─────────────────────────────────
+  /** Cofnij ostatnią operację */
+  undo: (): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }> =>
+    ipcRenderer.invoke('nextime:undo'),
+
+  /** Przywróć cofniętą operację */
+  redo: (): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }> =>
+    ipcRenderer.invoke('nextime:redo'),
+
+  /** Pobierz stan undo/redo */
+  getUndoState: (): Promise<{ canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }> =>
+    ipcRenderer.invoke('nextime:getUndoState'),
 });

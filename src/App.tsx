@@ -15,7 +15,7 @@ import { useRundownSocket } from '@/hooks/useRundownSocket';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePlaybackStore } from '@/store/playback.store';
 import { TextVariablePanel } from '@/components/TextVariablePanel/TextVariablePanel';
-import { ToastContainer } from '@/components/Toast/Toast';
+import { ToastContainer, useToastStore } from '@/components/Toast/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp/ShortcutHelp';
 import type { TimelineCueSummary, TextVariableInfo, CueGroupInfo } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
@@ -194,6 +194,85 @@ export default function App() {
     };
     document.addEventListener('nextime:insert-cue-below', handler);
     return () => document.removeEventListener('nextime:insert-cue-below', handler);
+  }, []);
+
+  // Faza 16: Undo/Redo handler — odświeża dane rundownu po cofnięciu/przywróceniu
+  useEffect(() => {
+    const refreshAfterUndoRedo = async () => {
+      const rundownId = usePlaybackStore.getState().activeRundownId;
+      if (!rundownId) return;
+      // Odśwież cue'y
+      const cueList = await window.nextime.getCues(rundownId);
+      usePlaybackStore.getState().setCues(
+        cueList.map(c => ({
+          id: c.id, title: c.title, subtitle: c.subtitle,
+          duration_ms: c.duration_ms, start_type: c.start_type,
+          hard_start_datetime: c.hard_start_datetime,
+          auto_start: c.auto_start, locked: c.locked,
+          background_color: c.background_color,
+          status: (c as unknown as Record<string, unknown>).status as 'ready' | 'standby' | 'done' | 'skipped' ?? 'ready',
+          group_id: c.group_id, sort_order: c.sort_order,
+        })),
+      );
+      // Odśwież kolumny
+      const cols = await window.nextime.getColumns(rundownId);
+      usePlaybackStore.getState().setColumns(cols.map(c => ({
+        id: c.id, rundown_id: c.rundown_id, name: c.name,
+        type: c.type, sort_order: c.sort_order, width_px: c.width_px,
+        dropdown_options: c.dropdown_options, is_script: c.is_script,
+      })));
+      // Odśwież grupy
+      const groups = await window.nextime.getCueGroups(rundownId);
+      usePlaybackStore.getState().setCueGroups(groups.map(g => ({
+        id: g.id, rundown_id: g.rundown_id, label: g.label,
+        sort_order: g.sort_order, collapsed: g.collapsed, color: g.color,
+      })));
+      // Odśwież zmienne
+      const vars = await window.nextime.getTextVariables(rundownId);
+      usePlaybackStore.getState().setTextVariables(vars.map(v => ({
+        id: v.id, rundown_id: v.rundown_id, key: v.key,
+        value: v.value, description: v.description, updated_at: v.updated_at,
+      })));
+    };
+
+    const undoHandler = async () => {
+      try {
+        const result = await window.nextime.undo();
+        usePlaybackStore.getState().setUndoState({
+          canUndo: result.canUndo, canRedo: result.canRedo,
+          undoDescription: '', redoDescription: '',
+        });
+        if (result.ok) {
+          useToastStore.getState().addToast('info', `Cofnięto: ${result.description}`);
+          await refreshAfterUndoRedo();
+        }
+      } catch (err) {
+        console.error('[App] Błąd undo:', err);
+      }
+    };
+
+    const redoHandler = async () => {
+      try {
+        const result = await window.nextime.redo();
+        usePlaybackStore.getState().setUndoState({
+          canUndo: result.canUndo, canRedo: result.canRedo,
+          undoDescription: '', redoDescription: '',
+        });
+        if (result.ok) {
+          useToastStore.getState().addToast('info', `Przywrócono: ${result.description}`);
+          await refreshAfterUndoRedo();
+        }
+      } catch (err) {
+        console.error('[App] Błąd redo:', err);
+      }
+    };
+
+    document.addEventListener('nextime:undo', undoHandler);
+    document.addEventListener('nextime:redo', redoHandler);
+    return () => {
+      document.removeEventListener('nextime:undo', undoHandler);
+      document.removeEventListener('nextime:redo', redoHandler);
+    };
   }, []);
 
   // Ładowanie rundownu — pobierz cues i ustaw w store

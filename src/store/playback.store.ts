@@ -262,6 +262,12 @@ export interface PlaybackState {
   privateNotes: Record<string, string>; // cue_id → treść notatki
   hiddenColumnIds: Set<string>; // ID kolumn ukrytych przez użytkownika
 
+  // Faza 16: Undo/Redo state
+  canUndo: boolean;
+  canRedo: boolean;
+  undoDescription: string;
+  redoDescription: string;
+
   // Faza 8: ATEM state
   atemConnected: boolean;
   atemProgramInput: number | null;
@@ -335,6 +341,9 @@ export interface PlaybackState {
   removePrivateNote: (cueId: string) => void;
   setHiddenColumnIds: (ids: Set<string>) => void;
   toggleColumnVisibility: (columnId: string) => void;
+
+  // Actions — Faza 16: Undo/Redo
+  setUndoState: (state: { canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }) => void;
 
   // Actions — Faza 8: ATEM
   setAtemStatus: (status: { connected: boolean; programInput: number | null; previewInput: number | null; modelName: string | null }) => void;
@@ -415,6 +424,12 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   // Faza 13: Prywatne notatki + Widoczność kolumn
   privateNotes: {},
   hiddenColumnIds: new Set<string>(),
+
+  // Faza 16: Undo/Redo state
+  canUndo: false,
+  canRedo: false,
+  undoDescription: '',
+  redoDescription: '',
 
   // Faza 8: ATEM state
   atemConnected: false,
@@ -723,6 +738,14 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       next.add(columnId);
     }
     return { hiddenColumnIds: next };
+  }),
+
+  // ── Faza 16: Undo/Redo ─────────────────────────────────
+  setUndoState: (state) => set({
+    canUndo: state.canUndo,
+    canRedo: state.canRedo,
+    undoDescription: state.undoDescription,
+    redoDescription: state.redoDescription,
   }),
 
   // ── Faza 8: ATEM ───────────────────────────────────────

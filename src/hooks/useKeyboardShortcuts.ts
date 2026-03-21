@@ -154,6 +154,21 @@ export function useKeyboardShortcuts({ sendCommand }: UseKeyboardShortcutsOption
         break;
       }
 
+      case 'z':
+      case 'Z': {
+        // Faza 16: Ctrl+Z = undo, Ctrl+Shift+Z = redo
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Redo
+          document.dispatchEvent(new CustomEvent('nextime:redo'));
+        } else {
+          // Undo
+          document.dispatchEvent(new CustomEvent('nextime:undo'));
+        }
+        break;
+      }
+
       case '?': {
         // Faza 11: Shortcut help overlay
         e.preventDefault();

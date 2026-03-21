@@ -77,8 +77,9 @@ const PRELOAD_PATH = resolvePreloadPath();
 // ── Inicjalizacja ───────────────────────────────────────────
 
 async function initServices(): Promise<void> {
-  // 1. Baza danych
-  const dbPath = path.join(app.getPath('userData'), 'nextime.db');
+  // 1. Baza danych (E2E testy mogą nadpisać katalog userData)
+  const userDataDir = process.env.NEXTIME_USER_DATA_DIR || app.getPath('userData');
+  const dbPath = path.join(userDataDir, 'nextime.db');
   const db = openDatabase(dbPath);
   runMigrations(db);
 
@@ -1091,7 +1092,10 @@ function createWindow(): void {
   // Dev: Vite dev server | Prod: plik HTML z dist
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools({ mode: 'bottom' });
+    // Nie otwieraj DevTools w trybie E2E
+    if (!process.env.NEXTIME_E2E) {
+      mainWindow.webContents.openDevTools({ mode: 'bottom' });
+    }
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }

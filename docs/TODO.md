@@ -1291,21 +1291,31 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 21 — E2E Testy (Playwright + Electron) [PLANOWANA]
+## Faza 21 — E2E Testy (Playwright + Electron) [UKOŃCZONA]
 
-- [ ] `playwright.config.ts` — konfiguracja
-- [ ] `tests/e2e/helpers/electron-app.ts` — helper uruchamiający Electron
-- [ ] `tests/e2e/rundown-crud.spec.ts` — 6 scenariuszy:
-  - [ ] Start aplikacji, lista rundownów
-  - [ ] Tworzenie rundownu, dodanie cue, edycja, reorder
-  - [ ] Usuwanie (Delete), duplikacja (Ctrl+D)
-- [ ] `tests/e2e/timeline-basic.spec.ts` — 5 scenariuszy:
-  - [ ] Widok Timeline, tworzenie aktu/tracku
-  - [ ] Tworzenie timeline cue, play/pause
-- [ ] `tests/e2e/output-views.spec.ts` — 3 scenariusze:
-  - [ ] Tworzenie output, otwarcie w przeglądarce
-  - [ ] Weryfikacja wyświetlania cue'ów
-- [ ] E2E testy: ~15-20
+- [x] `playwright.config.ts` — konfiguracja (testDir, timeout 60s, trace on-first-retry, 1 worker)
+- [x] `tests/e2e/helpers/electron-app.ts` — helper: launchApp() z izolowanym userData, closeApp() z cleanup
+- [x] `electron/main.ts` — obsługa env NEXTIME_USER_DATA_DIR (izolacja bazy E2E) + NEXTIME_E2E (bez DevTools)
+- [x] `tests/e2e/rundown-crud.spec.ts` — 6 scenariuszy:
+  - [x] Start aplikacji — UI się ładuje, sidebar widoczny
+  - [x] Tworzenie nowego rundownu — pojawia się na liście
+  - [x] Dodanie cue do rundownu — wiersz w tabeli
+  - [x] Edycja cue inline (dblclick na tytuł) — zmiana zapisana
+  - [x] Reorder cue (context menu widoczne po right-click)
+  - [x] Usuwanie cue (panel edycji → Usuń cue → confirm)
+- [x] `tests/e2e/timeline-basic.spec.ts` — 5 scenariuszy:
+  - [x] Przejście na zakładkę Oś czasu
+  - [x] Tworzenie aktu — pojawia się w ActSelector
+  - [x] Tworzenie tracku w akcie (Vision)
+  - [x] Widok timeline z trackami po załadowaniu aktu
+  - [x] Play/pause transport — stan się zmienia
+- [x] `tests/e2e/output-views.spec.ts` — 3 scenariusze:
+  - [x] Otwarcie panelu Wyjścia
+  - [x] Tworzenie output config — pojawia się na liście
+  - [x] Otwarcie okna output — nowe okno Electron
+- [x] E2E testy: 14
+
+**Statystyki Fazy 21:** 14 testów E2E (Playwright), 661 testów unit/integration (vitest) — razem 675
 
 ---
 
@@ -1362,8 +1372,8 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | 18 (Settings Panel) | 17 ✅ | UKOŃCZONA |
 | 19 (Multi-Window) | 9 ✅ | UKOŃCZONA |
 | 20 (Electron-Builder) | 5 ✅ | UKOŃCZONA |
-| 21 (E2E Testy) | ~18 | ŚREDNI |
+| 21 (E2E Testy) | 14 ✅ | UKOŃCZONA |
 | 22 (GPI + LTC + PTZ) | ~15 | NISKI |
 | **SUMA** | **~120** | |
 
-Po Fazie 22: **~650 testów**, pełna integracja hardware, production build, E2E coverage.
+Po Fazie 22: **~690 testów** (675 unit/integration + E2E), pełna integracja hardware, production build, E2E coverage.

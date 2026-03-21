@@ -473,6 +473,21 @@ CREATE TRIGGER IF NOT EXISTS trg_private_notes_updated
 
 
 -- ============================================================
+--  POZIOM 6: APP SETTINGS (key-value store)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT    PRIMARY KEY,
+    value       TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_app_settings_updated
+    AFTER UPDATE ON app_settings
+    BEGIN UPDATE app_settings SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE key = NEW.key; END;
+
+
+-- ============================================================
 --  SEED: domyślny admin
 --  Hasło: "admin" (bcrypt — zastąp przed produkcją!)
 -- ============================================================

@@ -2,11 +2,13 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { openDatabase, closeDb } from './db/connection';
 import { runMigrations } from './db/migrate';
-import { createRundownRepo, createCueRepo, createProjectRepo, createEventRepo, createUserRepo, createActRepo, createTrackRepo, createTimelineCueRepo, createOutputConfigRepo, createColumnRepo, createCellRepo, createCameraPresetRepo, createMediaFileRepo, createTextVariableRepo, createCueGroupRepo, createPrivateNoteRepo } from './db/repositories';
+import { createRundownRepo, createCueRepo, createProjectRepo, createEventRepo, createUserRepo, createActRepo, createTrackRepo, createTimelineCueRepo, createOutputConfigRepo, createColumnRepo, createCellRepo, createCameraPresetRepo, createMediaFileRepo, createTextVariableRepo, createCueGroupRepo, createPrivateNoteRepo, createSettingsRepo } from './db/repositories';
 import { PlaybackEngine } from './playback-engine';
 import { RundownWsServer } from './ws-server';
 import { createHttpServer } from './http-server';
 import { SenderManager } from './senders';
+import { SettingsManager } from './settings-manager';
+import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
 import {
@@ -40,6 +42,7 @@ let engine: PlaybackEngine | null = null;
 let wsServer: RundownWsServer | null = null;
 let httpServer: Server | null = null;
 let senderManager: SenderManager | null = null;
+let settingsManager: SettingsManager | null = null;
 let wsPort = 3141;
 
 // Repozytoria — inicjalizowane po otwarciu bazy
@@ -90,6 +93,11 @@ async function initServices(): Promise<void> {
   textVariableRepo = createTextVariableRepo(db);
   cueGroupRepo = createCueGroupRepo(db);
   privateNoteRepo = createPrivateNoteRepo(db);
+
+  // 2a. Settings Manager — wczytaj ustawienia z DB
+  const settingsRepo = createSettingsRepo(db);
+  settingsManager = new SettingsManager(settingsRepo);
+  settingsManager.loadAll();
 
   // 2b. Auto-seed: domyślny User + Event + Project (jeśli brak)
   const existingProjects = projectRepo.findAll();
@@ -162,6 +170,9 @@ async function initServices(): Promise<void> {
   senderManager = new SenderManager();
   senderManager.attach(engine);
 
+  // 6b. Zastosuj ustawienia z DB do senderów
+  settingsManager!.applyToSenders(senderManager);
+
   // 7. LTC Reader → Engine wiring
   senderManager.ltc.on('tc-received', (frames: number) => {
     engine!.feedExternalTc(frames);
@@ -191,6 +202,11 @@ async function initServices(): Promise<void> {
 // ── IPC Handlers ────────────────────────────────────────────
 
 function registerIpcHandlers(): void {
+  // Faza 18: Settings IPC (zarejestrowane w osobnym pliku)
+  if (settingsManager && senderManager) {
+    registerSettingsIpcHandlers(settingsManager, senderManager);
+  }
+
   ipcMain.handle('nextime:getRundowns', () => {
     const rundowns = rundownRepo.findAll();
     return rundowns.map(r => ({

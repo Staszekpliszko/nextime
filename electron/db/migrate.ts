@@ -41,6 +41,21 @@ function runIncrementalMigrations(db: Database.Database): void {
   if (!hasStatus) {
     db.exec(`ALTER TABLE cues ADD COLUMN status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN ('ready','standby','done','skipped'))`);
   }
+
+  // Faza 18: tabela app_settings (key-value store)
+  const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'`).all() as Array<{ name: string }>;
+  if (tables.length === 0) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+          key         TEXT    PRIMARY KEY,
+          value       TEXT    NOT NULL,
+          updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      CREATE TRIGGER IF NOT EXISTS trg_app_settings_updated
+          AFTER UPDATE ON app_settings
+          BEGIN UPDATE app_settings SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE key = NEW.key; END;
+    `);
+  }
 }
 
 /**

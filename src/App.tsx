@@ -17,6 +17,7 @@ import { usePlaybackStore } from '@/store/playback.store';
 import { TextVariablePanel } from '@/components/TextVariablePanel/TextVariablePanel';
 import { ToastContainer, useToastStore } from '@/components/Toast/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp/ShortcutHelp';
+import { SettingsPanel } from '@/components/SettingsPanel/SettingsPanel';
 import type { TimelineCueSummary, TextVariableInfo, CueGroupInfo } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
 
@@ -77,6 +78,7 @@ export default function App() {
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [showVariablePanel, setShowVariablePanel] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const atemConnected = usePlaybackStore(s => s.atemConnected);
 
@@ -634,6 +636,14 @@ export default function App() {
         >
           Zmienne
         </button>
+        {/* Faza 18: przycisk Ustawienia */}
+        <button
+          onClick={() => setShowSettingsPanel(true)}
+          className="ml-auto px-3 py-1 rounded text-xs font-medium transition-colors bg-slate-700 text-slate-400 hover:bg-slate-600 border border-slate-600"
+          title="Ustawienia"
+        >
+          ⚙ Ustawienia
+        </button>
         {viewMode === 'timeline' && (
           <>
             <button
@@ -770,6 +780,11 @@ export default function App() {
       {/* Faza 11: Shortcut Help overlay */}
       {showShortcutHelp && (
         <ShortcutHelp onClose={() => setShowShortcutHelp(false)} />
+      )}
+
+      {/* Faza 18: Settings Panel */}
+      {showSettingsPanel && (
+        <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
       )}
 
       {/* Faza 11: Toast notifications */}

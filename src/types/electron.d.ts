@@ -6,6 +6,7 @@ import type { Act, CreateActInput, UpdateActInput } from '../../electron/db/repo
 import type { Track, CreateTrackInput, UpdateTrackInput } from '../../electron/db/repositories/track.repo';
 import type { TimelineCue, CreateTimelineCueInput, UpdateTimelineCueInput } from '../../electron/db/repositories/timeline-cue.repo';
 import type { AtemStatus } from '../../electron/senders/atem-sender';
+import type { AllSettings, SettingsSection } from '../../electron/settings-manager';
 import type { TextVariable, CreateTextVariableInput, UpdateTextVariableInput } from '../../electron/db/repositories/text-variable.repo';
 import type { CueGroup, CreateCueGroupInput, UpdateCueGroupInput } from '../../electron/db/repositories/cue-group.repo';
 import type { LtcReaderStatus } from '../../electron/senders/ltc-reader';
@@ -152,6 +153,11 @@ export interface NextimeApi {
   midiGetConfig(): Promise<{ portName: string; defaultChannel: number; enabled: boolean }>;
   midiUpdateConfig(config: Record<string, unknown>): Promise<void>;
   midiIsAvailable(): Promise<boolean>;
+
+  // ── Settings (Faza 18) ────────────────────────────────────
+  getSettings(): Promise<AllSettings>;
+  getSettingsSection<S extends SettingsSection>(section: S): Promise<AllSettings[S]>;
+  updateSettings<S extends SettingsSection>(section: S, values: Partial<AllSettings[S]>): Promise<void>;
 }
 
 declare global {

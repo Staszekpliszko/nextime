@@ -355,4 +355,17 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Sprawdza czy moduł MIDI jest dostępny */
   midiIsAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('nextime:midiIsAvailable'),
+
+  // ── Settings (Faza 18) ──────────────────────────────────────
+  /** Pobiera wszystkie ustawienia */
+  getSettings: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:getSettings'),
+
+  /** Pobiera ustawienia jednej sekcji (np. 'osc', 'midi', 'atem') */
+  getSettingsSection: (section: string): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:getSettingsSection', section),
+
+  /** Aktualizuje ustawienia sekcji i propaguje do sendera */
+  updateSettings: (section: string, values: Record<string, unknown>): Promise<void> =>
+    ipcRenderer.invoke('nextime:updateSettings', section, values),
 });

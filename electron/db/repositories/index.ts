@@ -14,6 +14,7 @@ export { createTrackRepo } from './track.repo';
 export { createMediaFileRepo } from './media-file.repo';
 export { createTimelineCueRepo } from './timeline-cue.repo';
 export { createCameraPresetRepo } from './camera-preset.repo';
+export { createSettingsRepo } from './settings.repo';
 
 // Re-export helpers
 export { generateId, toBool, fromBool, parseJson, toJson } from './base';

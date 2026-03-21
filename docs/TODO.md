@@ -1226,22 +1226,26 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 18 — Settings Panel + Hardware Configuration UI [PLANOWANA]
+## Faza 18 — Settings Panel + Hardware Configuration UI [UKOŃCZONA]
 
-- [ ] `electron/db/repositories/settings.repo.ts` — key-value store (get, set, getAll)
-- [ ] Tabela `app_settings` w docs/schema.sql + migracja
-- [ ] `electron/settings-manager.ts` — centralne zarządzanie, propagacja do senderów
-- [ ] IPC: nextime:getSettings, nextime:updateSettings + per-sender configure
-- [ ] `src/components/SettingsPanel/SettingsPanel.tsx` — zakładki:
-  - [ ] Ogólne (język, auto-save)
-  - [ ] OSC (host, port, enabled, test send)
-  - [ ] MIDI (port dropdown, channel, enabled, test send)
-  - [ ] ATEM (IP, ME index, transition, auto-switch)
-  - [ ] LTC (source, device)
-  - [ ] GPI (enabled, placeholder)
-  - [ ] PTZ (lista kamer: IP, port, protocol)
-- [ ] Przycisk "Ustawienia" w toolbar (App.tsx)
-- [ ] Testy: ~16
+- [x] `electron/db/repositories/settings.repo.ts` — key-value store (get, set, getAll, getByPrefix, setMany, delete)
+- [x] Tabela `app_settings` w docs/schema.sql + migracja w migrate.ts
+- [x] `electron/settings-manager.ts` — centralne zarządzanie, cache + propagacja do senderów
+- [x] `electron/ipc/settings-ipc.ts` — IPC handlery: nextime:getSettings, nextime:getSettingsSection, nextime:updateSettings
+- [x] Preload + electron.d.ts — 3 nowe metody (getSettings, getSettingsSection, updateSettings)
+- [x] `src/components/SettingsPanel/SettingsPanel.tsx` — panel z zakładkami:
+  - [x] Ogólne (język, auto-save — placeholder)
+  - [x] OSC (host, port, enabled, test send)
+  - [x] MIDI (port dropdown, channel, enabled, test send)
+  - [x] ATEM (IP, ME index, transition, auto-switch, połącz/rozłącz)
+  - [x] LTC (source: wewnętrzny/LTC/MTC/ręczny)
+  - [x] GPI (enabled, domyślny impuls — placeholder)
+  - [x] PTZ (lista kamer: IP, port, VISCA — dynamiczne dodawanie/usuwanie)
+- [x] Przycisk "⚙ Ustawienia" w toolbar (App.tsx) — ml-auto (po prawej)
+- [x] Testy: 17 nowych (9 settings repo + 8 settings manager)
+
+**Statystyki Fazy 18:** 17 nowych testów, 6 nowych plików, 7 modyfikowanych
+**ŁĄCZNIE:** 647 testów, ~12500 linii kodu
 
 ---
 
@@ -1290,7 +1294,7 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 22 — GPI Sender + LTC Reader + PTZ VISCA [PLANOWANA]
+## Faza 22 — GPI Sender + LTC Reader + PTZ Multi-Protocol [PLANOWANA]
 
 - [ ] **22A — GPI Sender (serialport)**
   - [ ] Dependency: `serialport` (npm)
@@ -1300,10 +1304,23 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 - [ ] **22B — LTC Reader (audio input / MTC przez MIDI)**
   - [ ] ltc-reader.ts — prawdziwy odczyt LTC z karty dźwiękowej lub MTC z MIDI
   - [ ] Alternatywa: MTC przez node-midi (z Fazy 17)
-- [ ] **22C — PTZ Sender (VISCA over IP)**
-  - [ ] ptz-sender.ts — socket TCP do kamery, komendy VISCA recall preset
-  - [ ] Obsługa wielu kamer równocześnie
-- [ ] Testy: ~15
+- [ ] **22C — PTZ Sender (Multi-Protocol)**
+  - [ ] Rozszerz typ `protocol` w PtzCameraConfig:
+    - [ ] `visca_ip` — VISCA over IP (TCP/UDP, port 52381) — Sony, PTZOptics, Panasonic — PRIORYTET
+    - [ ] `visca_serial` — VISCA over Serial (RS-422/RS-232) — Sony BRC, starsze kamery
+    - [ ] `ndi` — NDI PTZ Control (via NDI SDK) — PTZOptics NDI, BirdDog
+    - [ ] `onvif` — ONVIF Profile S (HTTP/SOAP) — kamery IP ogólne
+    - [ ] `pelco_d` — Pelco-D (RS-485 serial) — kamery CCTV/security
+  - [ ] ptz-sender.ts — abstrakcja PtzDriver per protokół:
+    - [ ] ViscaIpDriver — socket TCP, komendy recall preset, pan/tilt/zoom
+    - [ ] ViscaSerialDriver — serialport RS-422, te same komendy VISCA
+    - [ ] NdiPtzDriver — NDI SDK (opcjonalnie, graceful fallback)
+    - [ ] OnvifDriver — HTTP SOAP (opcjonalnie)
+    - [ ] PelcoDDriver — serial RS-485, komendy Pelco-D (opcjonalnie)
+  - [ ] Obsługa wielu kamer równocześnie, każda z własnym protokołem
+  - [ ] UI: dropdown protokołu w SettingsPanel/PTZ (już przygotowany w Fazie 18)
+  - [ ] Auto-detection portów serialowych (dla visca_serial i pelco_d)
+- [ ] Testy: ~20
 
 ---
 
@@ -1327,7 +1344,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | 15 (Seed + Export) | ~25 | WYSOKI |
 | 16 (Undo/Redo) | 26 ✅ | UKOŃCZONA |
 | 17 (OSC + MIDI) | 41 ✅ | UKOŃCZONA |
-| 18 (Settings Panel) | ~16 | WYSOKI |
+| 18 (Settings Panel) | 17 ✅ | UKOŃCZONA |
 | 19 (Multi-Window) | ~8 | ŚREDNI |
 | 20 (Electron-Builder) | ~3 | KRYTYCZNY |
 | 21 (E2E Testy) | ~18 | ŚREDNI |

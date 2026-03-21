@@ -313,4 +313,46 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Pobierz stan undo/redo */
   getUndoState: (): Promise<{ canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }> =>
     ipcRenderer.invoke('nextime:getUndoState'),
+
+  // ── OSC Sender (Faza 17) ────────────────────────────────────
+  /** Wysyła testowy pakiet OSC i zwraca wynik */
+  oscTestSend: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:oscTestSend'),
+
+  /** Pobiera konfigurację OSC */
+  oscGetConfig: (): Promise<{ host: string; port: number; enabled: boolean }> =>
+    ipcRenderer.invoke('nextime:oscGetConfig'),
+
+  /** Aktualizuje konfigurację OSC */
+  oscUpdateConfig: (config: Record<string, unknown>): Promise<void> =>
+    ipcRenderer.invoke('nextime:oscUpdateConfig', config),
+
+  // ── MIDI Sender (Faza 17) ───────────────────────────────────
+  /** Pobiera listę dostępnych portów MIDI out */
+  midiListPorts: (): Promise<Array<{ index: number; name: string }>> =>
+    ipcRenderer.invoke('nextime:midiListPorts'),
+
+  /** Otwiera port MIDI po indeksie */
+  midiOpenPort: (portIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:midiOpenPort', portIndex),
+
+  /** Zamyka otwarty port MIDI */
+  midiClosePort: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:midiClosePort'),
+
+  /** Wysyła testową notę MIDI i zwraca wynik */
+  midiTestSend: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:midiTestSend'),
+
+  /** Pobiera konfigurację MIDI */
+  midiGetConfig: (): Promise<{ portName: string; defaultChannel: number; enabled: boolean }> =>
+    ipcRenderer.invoke('nextime:midiGetConfig'),
+
+  /** Aktualizuje konfigurację MIDI */
+  midiUpdateConfig: (config: Record<string, unknown>): Promise<void> =>
+    ipcRenderer.invoke('nextime:midiUpdateConfig', config),
+
+  /** Sprawdza czy moduł MIDI jest dostępny */
+  midiIsAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('nextime:midiIsAvailable'),
 });

@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events';
 import { OscSender } from './osc-sender';
-import type { OscSenderConfig } from './osc-sender';
+import type { OscSenderConfig, OscTestResult, OscValidationResult } from './osc-sender';
+import { validateOscAddress } from './osc-sender';
 import { MidiSender } from './midi-sender';
-import type { MidiSenderConfig } from './midi-sender';
+import type { MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor } from './midi-sender';
 import { GpiSender } from './gpi-sender';
 import type { GpiSenderConfig } from './gpi-sender';
 import { MediaSender } from './media-sender';
@@ -15,8 +16,8 @@ import { PtzSender } from './ptz-sender';
 import type { PtzSenderConfig } from './ptz-sender';
 
 // Re-eksport wszystkich senderów
-export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender };
-export type { OscSenderConfig, MidiSenderConfig, GpiSenderConfig, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, PtzSenderConfig };
+export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, validateOscAddress };
+export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, PtzSenderConfig };
 
 // ── SenderManager ───────────────────────────────────────
 

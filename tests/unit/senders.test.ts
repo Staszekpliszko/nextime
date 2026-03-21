@@ -427,4 +427,25 @@ describe('SenderManager', () => {
 
     manager.destroy();
   });
+
+  it('destroy() powinno wywołać destroy() na MidiSender (Faza 17)', () => {
+    const manager = new SenderManager();
+    const midiDestroySpy = vi.spyOn(manager.midi, 'destroy');
+    const oscDestroySpy = vi.spyOn(manager.osc, 'destroy');
+
+    manager.destroy();
+
+    expect(midiDestroySpy).toHaveBeenCalledTimes(1);
+    expect(oscDestroySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('MidiSender w SenderManager powinien mieć dostęp do listPorts() (Faza 17)', () => {
+    const manager = new SenderManager();
+
+    // listPorts() istnieje i nie rzuca wyjątku
+    const ports = manager.midi.listPorts();
+    expect(Array.isArray(ports)).toBe(true);
+
+    manager.destroy();
+  });
 });

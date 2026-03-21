@@ -1202,18 +1202,27 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 17 — OSC Sender (prawdziwy UDP) + MIDI Sender (node-midi) [PLANOWANA]
+## Faza 17 — OSC Sender (prawdziwy UDP) + MIDI Sender (node-midi) [UKOŃCZONA]
 
-- [ ] **17A — OSC Sender (weryfikacja + testy)**
-  - [ ] osc-sender.ts — dodać testSend(), lepsze error handling
-  - [ ] IPC: nextime:oscTestSend
-  - [ ] Testy z mockowanym dgram: ~5
-- [ ] **17B — MIDI Sender (prawdziwy node-midi)**
-  - [ ] Dependency: `midi` (npm, native moduł — wymaga electron-rebuild)
-  - [ ] midi-sender.ts — prawdziwa implementacja: openPort, handleTrigger, listPorts, closePort
-  - [ ] Graceful fallback gdy midi niedostępne
-  - [ ] IPC: nextime:midiListPorts, nextime:midiOpenPort, nextime:midiTestSend
-  - [ ] Testy z mockiem midi: ~10
+- [x] **17A — OSC Sender (weryfikacja + testy)**
+  - [x] osc-sender.ts — testSend(), walidacja IP/port (validateOscAddress), callback w send(), socket.unref()
+  - [x] IPC: nextime:oscTestSend, nextime:oscGetConfig, nextime:oscUpdateConfig
+  - [x] Preload + electron.d.ts rozszerzone
+  - [x] Nowy plik testów: tests/unit/osc-sender.test.ts — 18 testów (walidacja, testSend, send z callbackiem, updateConfig)
+- [x] **17B — MIDI Sender (prawdziwy @julusian/midi)**
+  - [x] Dependency: `@julusian/midi` (native moduł z prebuilds, N-API)
+  - [x] midi-sender.ts — prawdziwa implementacja: listPorts, openPort, closePort, testSend, handleTrigger z hardware output
+  - [x] Graceful fallback gdy midi niedostępne (DI: MidiOutputConstructor | null)
+  - [x] IPC: nextime:midiListPorts, nextime:midiOpenPort, nextime:midiClosePort, nextime:midiTestSend, nextime:midiGetConfig, nextime:midiUpdateConfig, nextime:midiIsAvailable
+  - [x] Preload + electron.d.ts rozszerzone
+  - [x] Nowy plik testów: tests/unit/midi-sender.test.ts — 21 testów (listPorts, openPort, closePort, handleTrigger z/bez portu, testSend, isMidiAvailable, destroy)
+- [x] **17C — Integracja SenderManager + testy**
+  - [x] SenderManager destroy() poprawnie zamyka port MIDI
+  - [x] Rozszerzenie tests/unit/senders.test.ts — 2 nowe testy integracyjne
+  - [x] Re-eksport nowych typów z electron/senders/index.ts
+
+**Statystyki Fazy 17:** 41 nowych testów (osc: 18, midi: 21, sender-manager: 2), ~400 linii nowego kodu
+**ŁĄCZNIE:** 630 testów, 53 pliki testów
 
 ---
 
@@ -1317,7 +1326,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 |------|-------|-----------|
 | 15 (Seed + Export) | ~25 | WYSOKI |
 | 16 (Undo/Redo) | 26 ✅ | UKOŃCZONA |
-| 17 (OSC + MIDI) | ~15 | WYSOKI |
+| 17 (OSC + MIDI) | 41 ✅ | UKOŃCZONA |
 | 18 (Settings Panel) | ~16 | WYSOKI |
 | 19 (Multi-Window) | ~8 | ŚREDNI |
 | 20 (Electron-Builder) | ~3 | KRYTYCZNY |

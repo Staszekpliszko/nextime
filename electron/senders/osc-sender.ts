@@ -83,6 +83,46 @@ export function buildOscMessage(address: string, args: OscArg[]): Buffer {
   return Buffer.concat(parts);
 }
 
+// ── Wynik testu / walidacji ──────────────────────────────
+
+export interface OscTestResult {
+  ok: boolean;
+  error?: string;
+}
+
+export interface OscValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+// ── Walidacja adresu IP i portu ─────────────────────────
+
+const IPV4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+/** Sprawdza poprawność adresu IPv4 i portu UDP */
+export function validateOscAddress(host: string, port: number): OscValidationResult {
+  // Walidacja portu
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return { valid: false, error: `Port musi być liczbą 1-65535, otrzymano: ${port}` };
+  }
+
+  // Walidacja hosta — IPv4
+  const match = IPV4_REGEX.exec(host);
+  if (!match) {
+    return { valid: false, error: `Nieprawidłowy adres IPv4: ${host}` };
+  }
+
+  // Każdy oktet 0-255
+  for (let i = 1; i <= 4; i++) {
+    const octet = parseInt(match[i]!, 10);
+    if (octet > 255) {
+      return { valid: false, error: `Oktet ${i} poza zakresem (0-255): ${octet}` };
+    }
+  }
+
+  return { valid: true };
+}
+
 // ── OscSender ───────────────────────────────────────────
 
 const DEFAULT_CONFIG: OscSenderConfig = {
@@ -130,20 +170,75 @@ export class OscSender {
     }
   }
 
-  /** Wysyła surowy pakiet UDP */
-  private send(packet: Buffer): void {
+  /**
+   * Wysyła testowy pakiet OSC /nextime/ping z argem i:1.
+   * Pozwala UI zweryfikować połączenie z urządzeniem docelowym.
+   */
+  testSend(): Promise<OscTestResult> {
+    if (!this.config.enabled) {
+      return Promise.resolve({ ok: false, error: 'OSC sender jest wyłączony' });
+    }
+
+    // Walidacja adresu przed wysyłką
+    const validation = validateOscAddress(this.config.host, this.config.port);
+    if (!validation.valid) {
+      return Promise.resolve({ ok: false, error: validation.error });
+    }
+
+    const packet = buildOscMessage('/nextime/ping', [{ type: 'i', value: 1 }]);
+
+    return new Promise<OscTestResult>((resolve) => {
+      try {
+        this.ensureSocket();
+        this.socket!.send(packet, this.config.port, this.config.host, (err) => {
+          if (err) {
+            resolve({ ok: false, error: `Błąd wysyłania UDP: ${err.message}` });
+          } else {
+            console.log(`[OscSender] Test ping wysłany → ${this.config.host}:${this.config.port}`);
+            resolve({ ok: true });
+          }
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        resolve({ ok: false, error: `Błąd socketa: ${msg}` });
+      }
+    });
+  }
+
+  /** Tworzy socket UDP jeśli jeszcze nie istnieje */
+  private ensureSocket(): void {
     if (!this.socket) {
       this.socket = dgram.createSocket('udp4');
       this.socket.on('error', (err) => {
         console.error('[OscSender] Socket error:', err);
       });
+      // unref() — socket nie blokuje zamknięcia procesu Electron
+      this.socket.unref();
     }
-    this.socket.send(packet, this.config.port, this.config.host);
   }
 
-  /** Aktualizuje konfigurację w runtime */
+  /** Wysyła surowy pakiet UDP z callbackiem error */
+  private send(packet: Buffer): void {
+    this.ensureSocket();
+    this.socket!.send(packet, this.config.port, this.config.host, (err) => {
+      if (err) {
+        console.error(`[OscSender] Błąd wysyłania UDP: ${err.message}`);
+      }
+    });
+  }
+
+  /** Aktualizuje konfigurację w runtime z walidacją */
   updateConfig(config: Partial<OscSenderConfig>): void {
-    this.config = { ...this.config, ...config };
+    const newConfig = { ...this.config, ...config };
+    // Walidacja adresu jeśli zmieniono host lub port
+    if (config.host !== undefined || config.port !== undefined) {
+      const validation = validateOscAddress(newConfig.host, newConfig.port);
+      if (!validation.valid) {
+        console.warn(`[OscSender] Nieprawidłowa konfiguracja: ${validation.error}`);
+        return;
+      }
+    }
+    this.config = newConfig;
   }
 
   /** Zwraca aktualną konfigurację */

@@ -138,6 +138,20 @@ export interface NextimeApi {
   atemDisconnect(): Promise<void>;
   atemCut(input: number): Promise<void>;
   atemPreview(input: number): Promise<void>;
+
+  // ── OSC Sender (Faza 17) ────────────────────────────────
+  oscTestSend(): Promise<{ ok: boolean; error?: string }>;
+  oscGetConfig(): Promise<{ host: string; port: number; enabled: boolean }>;
+  oscUpdateConfig(config: Record<string, unknown>): Promise<void>;
+
+  // ── MIDI Sender (Faza 17) ───────────────────────────────
+  midiListPorts(): Promise<Array<{ index: number; name: string }>>;
+  midiOpenPort(portIndex: number): Promise<{ ok: boolean; error?: string }>;
+  midiClosePort(): Promise<void>;
+  midiTestSend(): Promise<{ ok: boolean; error?: string }>;
+  midiGetConfig(): Promise<{ portName: string; defaultChannel: number; enabled: boolean }>;
+  midiUpdateConfig(config: Record<string, unknown>): Promise<void>;
+  midiIsAvailable(): Promise<boolean>;
 }
 
 declare global {

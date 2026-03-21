@@ -979,6 +979,60 @@ function registerIpcHandlers(): void {
       return { ok: false, error: message };
     }
   });
+
+  // ── OSC Sender (Faza 17) ───────────────────────────────────
+
+  ipcMain.handle('nextime:oscTestSend', async () => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.osc.testSend();
+  });
+
+  ipcMain.handle('nextime:oscGetConfig', () => {
+    if (!senderManager) return { host: '127.0.0.1', port: 8000, enabled: true };
+    return senderManager.osc.getConfig();
+  });
+
+  ipcMain.handle('nextime:oscUpdateConfig', (_event, config: Record<string, unknown>) => {
+    if (!senderManager) return;
+    senderManager.osc.updateConfig(config as Partial<import('./senders/osc-sender').OscSenderConfig>);
+  });
+
+  // ── MIDI Sender (Faza 17) ──────────────────────────────────
+
+  ipcMain.handle('nextime:midiListPorts', () => {
+    if (!senderManager) return [];
+    return senderManager.midi.listPorts();
+  });
+
+  ipcMain.handle('nextime:midiOpenPort', (_event, portIndex: number) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.midi.openPort(portIndex);
+  });
+
+  ipcMain.handle('nextime:midiClosePort', () => {
+    if (!senderManager) return;
+    senderManager.midi.closePort();
+  });
+
+  ipcMain.handle('nextime:midiTestSend', async () => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.midi.testSend();
+  });
+
+  ipcMain.handle('nextime:midiGetConfig', () => {
+    if (!senderManager) return { portName: 'NextTime Virtual MIDI', defaultChannel: 1, enabled: true };
+    return senderManager.midi.getConfig();
+  });
+
+  ipcMain.handle('nextime:midiUpdateConfig', (_event, config: Record<string, unknown>) => {
+    if (!senderManager) return;
+    senderManager.midi.updateConfig(config as Partial<import('./senders/midi-sender').MidiSenderConfig>);
+  });
+
+  ipcMain.handle('nextime:midiIsAvailable', () => {
+    if (!senderManager) return false;
+    return senderManager.midi.isMidiAvailable();
+  });
 }
 
 // ── Helper: przeładuj engine jeśli aktywny rundown ──────────

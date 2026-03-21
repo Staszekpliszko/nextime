@@ -7,6 +7,9 @@ import { PlaybackEngine } from './playback-engine';
 import { RundownWsServer } from './ws-server';
 import { createHttpServer } from './http-server';
 import { SenderManager } from './senders';
+import { seedDemoData } from './db/seed-demo';
+import { exportRundownToJson, importRundownFromJson } from './export-import';
+import fs from 'fs';
 import type { AtemSenderConfig } from './senders/atem-sender';
 import type { Server } from 'http';
 import type { CreateCueInput, UpdateCueInput } from './db/repositories/cue.repo';
@@ -106,6 +109,19 @@ async function initServices(): Promise<void> {
     // Pobierz istniejącego usera — bierzemy właściciela pierwszego projektu
     const firstProject = existingProjects[0];
     localUserId = firstProject ? firstProject.owner_id : '';
+  }
+
+  // 2c. Seed demo data — tworzy przykładowy rundown jeśli baza jest pusta (brak rundownów)
+  const existingRundowns = rundownRepo.findAll();
+  if (existingRundowns.length === 0) {
+    const allProjects = projectRepo.findAll();
+    if (allProjects.length > 0) {
+      seedDemoData(allProjects[0]!.id, {
+        rundownRepo, cueRepo, columnRepo, cellRepo,
+        textVariableRepo, cueGroupRepo,
+        actRepo, trackRepo, timelineCueRepo, cameraPresetRepo,
+      });
+    }
   }
 
   // 3. PlaybackEngine
@@ -725,6 +741,77 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('nextime:getHttpPort', () => {
     return 3142;
+  });
+
+  // ── Export / Import Rundownu (Faza 15) ──────────────────────
+
+  ipcMain.handle('nextime:exportRundown', async (_event, rundownId: string) => {
+    if (!mainWindow) return { ok: false, error: 'Brak okna głównego' };
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Eksportuj rundown',
+      defaultPath: `rundown-export.nextime.json`,
+      filters: [
+        { name: 'NextTime Rundown', extensions: ['nextime.json'] },
+        { name: 'JSON', extensions: ['json'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { ok: false, canceled: true };
+    }
+
+    try {
+      const data = exportRundownToJson(rundownId, {
+        rundownRepo, cueRepo, columnRepo, cellRepo, textVariableRepo, cueGroupRepo,
+      });
+      fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { ok: true, filePath: result.filePath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Nieznany błąd eksportu';
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('nextime:importRundown', async () => {
+    if (!mainWindow) return { ok: false, error: 'Brak okna głównego' };
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importuj rundown',
+      filters: [
+        { name: 'NextTime Rundown', extensions: ['nextime.json', 'json'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, canceled: true };
+    }
+
+    try {
+      const content = fs.readFileSync(result.filePaths[0]!, 'utf-8');
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        return { ok: false, error: 'Nieprawidłowy format JSON' };
+      }
+
+      // Pobierz pierwszy projekt jako domyślny
+      const projects = projectRepo.findAll();
+      if (projects.length === 0) {
+        return { ok: false, error: 'Brak projektów w bazie' };
+      }
+
+      const newRundownId = importRundownFromJson(parsed, projects[0]!.id, {
+        rundownRepo, cueRepo, columnRepo, cellRepo, textVariableRepo, cueGroupRepo,
+      });
+
+      return { ok: true, rundownId: newRundownId };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Nieznany błąd importu';
+      return { ok: false, error: message };
+    }
   });
 }
 

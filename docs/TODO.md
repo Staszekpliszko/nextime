@@ -1141,23 +1141,37 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 15 — Seed Demo Data + Import/Export Rundownu [PLANOWANA]
+## Faza 15 — Seed Demo Data + Import/Export Rundownu [UKOŃCZONA]
 
-- [ ] **15A — Seed demo data**
-  - [ ] `electron/db/seed-demo.ts` — funkcja seedDemoData()
-  - [ ] Rundown "Gala AS Media 2026" z 12 cue'ami (opening, VT, wywiad, przerwa, itd.)
-  - [ ] 3 kolumny dynamiczne: "Skrypt" (richtext), "Audio" (dropdown), "Grafika" (richtext)
-  - [ ] 2 grupy cue'ów: "Blok 1", "Blok 2"
-  - [ ] 4 zmienne tekstowe: $presenter, $date, $venue, $sponsor
-  - [ ] 1 Act "Koncert" z 5 trackami (vision, lyrics, osc, midi, media) i 15-20 timeline cue'ów
-  - [ ] 3 camera presety
-  - [ ] Testy seed: ~10
-- [ ] **15B — Export/Import rundownu (JSON)**
-  - [ ] `electron/export-import.ts` — exportRundownToJson() + importRundownFromJson()
-  - [ ] IPC handlery: nextime:exportRundown (dialog Save As), nextime:importRundown (dialog Open)
-  - [ ] Preload bridge + electron.d.ts
-  - [ ] Przyciski "Eksportuj" / "Importuj" w RundownSidebar
-  - [ ] Testy export/import: ~15
+- [x] **15A — Seed demo data**
+  - [x] `electron/db/seed-demo.ts` — funkcja seedDemoData() z pełnymi danymi demo
+  - [x] Rundown "Gala AS Media 2026" z 12 cue'ami (Opening, VT Intro, Wywiad, Przerwa muzyczna, Blok sponsorski, Konkurs, VT Reportaż, Panel dyskusyjny, Występ artystyczny, Podsumowanie, Zakończenie, Credits)
+  - [x] 3 kolumny dynamiczne: "Skrypt" (richtext), "Audio" (dropdown: BGM/VO/OFF/SFX), "Grafika" (richtext)
+  - [x] 2 grupy cue'ów: "Blok 1 — Otwarcie", "Blok 2 — Program"
+  - [x] 4 zmienne tekstowe: $presenter, $date, $venue, $sponsor
+  - [x] 1 Act "Koncert Główny" (fps=25, 45000 klatek) z 5 trackami i 12 timeline cue'ów (4 vision, 3 lyric, 2 osc, 1 midi, 1 media)
+  - [x] 3 camera presety (Scena/Publiczność/Zbliżenie)
+  - [x] Przykładowe komórki (cells) z richtext i dropdown dla kilku cue'ów
+  - [x] Idempotentność — nie tworzy duplikatów przy ponownym uruchomieniu
+  - [x] Wywołanie w `electron/main.ts` w initServices() po seedowaniu user/event/project
+  - [x] `docs/schema.sql` — dodano kolumnę `status` do tabeli cues (zsynchronizowano z migracją inkrementalną)
+- [x] **15B — Export/Import rundownu (JSON)**
+  - [x] `electron/export-import.ts` — exportRundownToJson() + importRundownFromJson()
+  - [x] Format .nextime.json z wersjonowaniem (version: 1), cells z indeksami cue/kolumny, groups z ref
+  - [x] Walidacja importu: wersja, app, wymagane pola, graceful handling brakujących opcjonalnych
+  - [x] Nowe UUID przy imporcie — brak kolizji z istniejącymi danymi
+  - [x] IPC handlery: nextime:exportRundown (dialog Save As), nextime:importRundown (dialog Open)
+  - [x] Preload bridge + electron.d.ts — rozszerzone o exportRundown() i importRundown()
+  - [x] `src/components/RundownSidebar/ImportExportButtons.tsx` — przyciski "Eksportuj" (↓) i "Importuj" (↑)
+  - [x] Integracja z RundownSidebar — przyciski na dole panelu
+  - [x] Toast notifications po udanym eksporcie/imporcie
+- [x] **Testy Fazy 15**
+  - [x] `tests/unit/seed-demo.test.ts` — 12 testów (seed tworzy dane, idempotentność, poprawność danych)
+  - [x] `tests/unit/export-import.test.ts` — 22 testy (export struktura, roundtrip, walidacja, nowe UUID)
+- [x] TypeScript strict, zero `any`, zero błędów `tsc --noEmit`
+
+**Statystyki Fazy 15:** 34 nowe testy, ~600 linii nowego kodu
+**ŁĄCZNIE:** 563 testy, 48 plików testów
 
 ---
 

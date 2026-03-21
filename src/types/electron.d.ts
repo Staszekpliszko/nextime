@@ -122,6 +122,10 @@ export interface NextimeApi {
   setColumnVisibility(columnId: string, hidden: boolean): Promise<ColumnVisibility>;
   getColumnVisibilities(rundownId: string): Promise<ColumnVisibility[]>;
 
+  // ── Export / Import (Faza 15) ──────────────────────────
+  exportRundown(rundownId: string): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }>;
+  importRundown(): Promise<{ ok: boolean; rundownId?: string; error?: string; canceled?: boolean }>;
+
   // ── ATEM ────────────────────────────────────────────────
   atemGetStatus(): Promise<AtemStatus>;
   atemConfigure(config: Record<string, unknown>): Promise<void>;

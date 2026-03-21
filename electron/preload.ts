@@ -291,4 +291,13 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Ręczny PREVIEW na ATEM */
   atemPreview: (input: number): Promise<void> =>
     ipcRenderer.invoke('nextime:atemPreview', input),
+
+  // ── Export / Import Rundownu (Faza 15) ──────────────────
+  /** Eksportuje rundown do pliku .nextime.json (dialog Save As) */
+  exportRundown: (rundownId: string): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }> =>
+    ipcRenderer.invoke('nextime:exportRundown', rundownId),
+
+  /** Importuje rundown z pliku .nextime.json (dialog Open File) */
+  importRundown: (): Promise<{ ok: boolean; rundownId?: string; error?: string; canceled?: boolean }> =>
+    ipcRenderer.invoke('nextime:importRundown'),
 });

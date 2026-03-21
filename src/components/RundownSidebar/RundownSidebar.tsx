@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
+import { ImportExportButtons } from './ImportExportButtons';
 import type { RundownSummary } from '@/store/playback.store';
 
 interface RundownSidebarProps {
@@ -161,6 +162,9 @@ export function RundownSidebar({ onRundownSelect }: RundownSidebarProps) {
           })
         )}
       </div>
+
+      {/* Faza 15: Import/Export */}
+      <ImportExportButtons onImportSuccess={onRundownSelect} />
     </div>
   );
 }

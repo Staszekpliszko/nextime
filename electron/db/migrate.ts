@@ -3,20 +3,31 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Szuka schema.sql — obsługuje zarówno dev (source), jak i prod (bundled).
- * W dev: __dirname = electron/db/, schema = ../../docs/schema.sql
- * Po bundlowaniu: __dirname = dist-electron/, schema = ../docs/schema.sql
+ * Szuka schema.sql — obsługuje dev, bundled (vite) i production (electron-builder).
+ *
+ * Kolejność priorytetów:
+ * 1. Production: process.resourcesPath/docs/schema.sql (extraResources)
+ * 2. Bundled (dist-electron/): ../docs/schema.sql
+ * 3. Dev (electron/db/): ../../docs/schema.sql
+ * 4. Fallback: cwd/docs/schema.sql
  */
 function findSchemaPath(): string {
-  const candidates = [
+  const candidates: string[] = [];
+
+  // Production: extraResources z electron-builder trafia do resourcesPath
+  if (typeof process.resourcesPath === 'string') {
+    candidates.push(path.join(process.resourcesPath, 'docs', 'schema.sql'));
+  }
+
+  candidates.push(
     path.join(__dirname, '..', '..', 'docs', 'schema.sql'),  // dev (source)
     path.join(__dirname, '..', 'docs', 'schema.sql'),         // bundled (dist-electron/)
     path.join(process.cwd(), 'docs', 'schema.sql'),           // fallback (cwd)
-  ];
+  );
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
-  throw new Error(`schema.sql not found. Searched: ${candidates.join(', ')}`);
+  throw new Error(`[NextTime] schema.sql nie znaleziony. Sprawdzone ścieżki:\n${candidates.join('\n')}`);
 }
 
 /**

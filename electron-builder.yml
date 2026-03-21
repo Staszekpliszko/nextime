@@ -1,0 +1,75 @@
+# NextTime — Electron Builder Configuration
+# Konfiguracja budowania paczek instalacyjnych (Windows + macOS)
+
+appId: com.aslive.nextime
+productName: NextTime
+copyright: "Copyright © 2024-2026 AS LIVE MEDIA Sp. z o.o."
+
+directories:
+  output: release/
+
+# Pliki włączone do paczki
+files:
+  - dist-electron/**/*
+  - dist/**/*
+  - "!node_modules/**/*.{md,ts,map}"
+
+# better-sqlite3 to moduł natywny — musi być POZA asar
+asar: true
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+  - "**/node_modules/bindings/**"
+  - "**/node_modules/file-uri-to-path/**"
+  - "**/node_modules/prebuild-install/**"
+
+# schema.sql kopiowany jako extraResource (dostępny przez process.resourcesPath)
+extraResources:
+  - from: docs/schema.sql
+    to: docs/schema.sql
+
+# ── Windows ─────────────────────────────────────────────────
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: assets/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+
+# ── macOS ───────────────────────────────────────────────────
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: assets/icon.png
+  category: public.app-category.productivity
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# ── Linux (opcjonalnie) ────────────────────────────────────
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: assets/icon.png
+  category: AudioVideo

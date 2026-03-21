@@ -11,6 +11,7 @@ import { SettingsManager } from './settings-manager';
 import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
 import { registerWindowIpcHandlers } from './ipc/window-ipc';
 import { WindowManager } from './window-manager';
+import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
 import {
@@ -70,8 +71,8 @@ let localUserId = '';
 // Undo/Redo manager — globalny dla sesji
 const undoManager = new UndoManager();
 
-// ── Ścieżka do preload ─────────────────────────────────────
-const PRELOAD_PATH = path.join(__dirname, 'preload.js');
+// ── Ścieżka do preload (dev + production) ──────────────────
+const PRELOAD_PATH = resolvePreloadPath();
 
 // ── Inicjalizacja ───────────────────────────────────────────
 

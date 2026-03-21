@@ -1265,18 +1265,29 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 20 — Electron-Builder Config + Production Build [PLANOWANA]
+## Faza 20 — Electron-Builder Config + Production Build [UKOŃCZONA]
 
-- [ ] `electron-builder.yml` — konfiguracja:
-  - [ ] appId: com.aslive.nextime
-  - [ ] productName: NextTime
-  - [ ] win: target [nsis, portable], icon
-  - [ ] mac: target [dmg], icon, category
-  - [ ] files, asarUnpack (better-sqlite3), extraResources (schema.sql)
-- [ ] `assets/icon.ico`, `assets/icon.png` — ikona aplikacji
-- [ ] package.json — skrypty: pack, dist, dist:win, dist:mac
-- [ ] Poprawka ścieżki schema.sql w production (main.ts + migrate.ts)
-- [ ] Smoke testy: ~3
+- [x] `electron-builder.yml` — pełna konfiguracja:
+  - [x] appId: com.aslive.nextime
+  - [x] productName: NextTime
+  - [x] win: target [nsis, portable], icon
+  - [x] mac: target [dmg], icon, category
+  - [x] files, asarUnpack (better-sqlite3 + bindings), extraResources (schema.sql)
+  - [x] nsis: allowToChangeInstallationDirectory, ikony instalatora
+  - [x] linux: AppImage (opcjonalnie)
+  - [x] directories.output: release/
+- [x] `assets/icon.ico`, `assets/icon.png` — placeholder ikony (do podmiany)
+- [x] package.json — skrypty: pack, dist, dist:win, dist:mac
+- [x] `electron/paths.ts` — helper resolving ścieżek (dev vs prod):
+  - [x] `isProduction()` — wrapper na app.isPackaged
+  - [x] `resolveSchemaPath()` — dev/bundled/production candidates
+  - [x] `resolvePreloadPath()` — preload.js w obu trybach
+- [x] Poprawka ścieżki schema.sql w production (`electron/db/migrate.ts` — resourcesPath candidate)
+- [x] Poprawka ścieżki preload.js (`electron/main.ts` — import resolvePreloadPath z paths.ts)
+- [x] Smoke testy: 5 (`tests/unit/production-build.test.ts`)
+
+**Statystyki Fazy 20:** 5 nowych testów, ~180 linii nowego kodu
+**ŁĄCZNIE:** 661 testów, 56 plików testów
 
 ---
 
@@ -1350,7 +1361,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | 17 (OSC + MIDI) | 41 ✅ | UKOŃCZONA |
 | 18 (Settings Panel) | 17 ✅ | UKOŃCZONA |
 | 19 (Multi-Window) | 9 ✅ | UKOŃCZONA |
-| 20 (Electron-Builder) | ~3 | KRYTYCZNY |
+| 20 (Electron-Builder) | 5 ✅ | UKOŃCZONA |
 | 21 (E2E Testy) | ~18 | ŚREDNI |
 | 22 (GPI + LTC + PTZ) | ~15 | NISKI |
 | **SUMA** | **~120** | |

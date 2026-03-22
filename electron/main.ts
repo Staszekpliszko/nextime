@@ -11,6 +11,7 @@ import { SettingsManager } from './settings-manager';
 import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
 import { registerWindowIpcHandlers } from './ipc/window-ipc';
 import { registerObsIpcHandlers } from './ipc/obs-ipc';
+import { registerVmixIpcHandlers } from './ipc/vmix-ipc';
 import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
@@ -186,6 +187,19 @@ async function initServices(): Promise<void> {
   // 6b. Zastosuj ustawienia z DB do senderów
   settingsManager!.applyToSenders(senderManager);
 
+  // 6c. Auto-connect senderów które są enabled w ustawieniach
+  const savedSettings = settingsManager!.getAll();
+  if (savedSettings.vmix.enabled) {
+    senderManager.vmix.connect().catch(err => {
+      console.log('[NextTime] vMix auto-connect nieudany (vMix niedostępny?):', err instanceof Error ? err.message : err);
+    });
+  }
+  if (savedSettings.obs.enabled) {
+    senderManager.obs.connect().catch(err => {
+      console.log('[NextTime] OBS auto-connect nieudany (OBS niedostępny?):', err instanceof Error ? err.message : err);
+    });
+  }
+
   // 7. LTC Reader → Engine wiring
   senderManager.ltc.on('tc-received', (frames: number) => {
     engine!.feedExternalTc(frames);
@@ -223,6 +237,11 @@ function registerIpcHandlers(): void {
   // Faza 25: OBS IPC
   if (senderManager) {
     registerObsIpcHandlers(senderManager);
+  }
+
+  // Faza 26: vMix IPC
+  if (senderManager) {
+    registerVmixIpcHandlers(senderManager);
   }
 
   // Faza 19: Window IPC (zarządzanie oknami prompter/output)
@@ -1249,7 +1268,7 @@ function createWindow(): void {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     // Nie otwieraj DevTools w trybie E2E
     if (!process.env.NEXTIME_E2E) {
-      mainWindow.webContents.openDevTools({ mode: 'bottom' });
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));

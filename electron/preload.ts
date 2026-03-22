@@ -500,6 +500,51 @@ contextBridge.exposeInMainWorld('nextime', {
   obsTriggerTransition: (transitionName?: string, durationMs?: number): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('nextime:obsTriggerTransition', transitionName, durationMs),
 
+  // ── vMix (Faza 26) ────────────────────────────────────────────
+  /** Łączy z vMix HTTP API */
+  vmixConnect: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixConnect'),
+
+  /** Rozłącza vMix */
+  vmixDisconnect: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:vmixDisconnect'),
+
+  /** Pobiera status vMix */
+  vmixGetStatus: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:vmixGetStatus'),
+
+  /** Pobiera listę inputów vMix (z cache) */
+  vmixGetInputs: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:vmixGetInputs'),
+
+  /** Odświeża i pobiera listę inputów vMix (live) */
+  vmixRefreshInputs: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:vmixRefreshInputs'),
+
+  /** CUT na input vMix */
+  vmixCut: (input: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixCut', input),
+
+  /** Fade na input vMix */
+  vmixFade: (input: number, durationMs?: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixFade', input, durationMs),
+
+  /** Ustaw Preview vMix */
+  vmixSetPreview: (input: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixSetPreview', input),
+
+  /** Play media na inpucie vMix */
+  vmixPlayMedia: (input: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixPlayMedia', input),
+
+  /** Pause media na inpucie vMix */
+  vmixPauseMedia: (input: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixPauseMedia', input),
+
+  /** Ustaw głośność inputu vMix (0-100) */
+  vmixSetVolume: (input: number, volume: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:vmixSetVolume', input, volume),
+
   // ── Settings (Faza 18) ──────────────────────────────────────
   /** Pobiera wszystkie ustawienia */
   getSettings: (): Promise<unknown> =>

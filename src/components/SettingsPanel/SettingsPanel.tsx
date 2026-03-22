@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings } from '../../../electron/settings-manager';
+import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings, VmixSettings } from '../../../electron/settings-manager';
 import { ObsSettingsTab } from './ObsSettingsTab';
+import { VmixSettingsTab } from './VmixSettingsTab';
 
 // ── Typy ────────────────────────────────────────────────
 
-type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'ltc' | 'gpi' | 'ptz';
+type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'vmix' | 'ltc' | 'gpi' | 'ptz';
 
 interface Tab {
   id: TabId;
@@ -17,6 +18,7 @@ const TABS: Tab[] = [
   { id: 'midi', label: 'MIDI' },
   { id: 'atem', label: 'ATEM' },
   { id: 'obs', label: 'OBS' },
+  { id: 'vmix', label: 'vMix' },
   { id: 'ltc', label: 'LTC' },
   { id: 'gpi', label: 'GPI' },
   { id: 'ptz', label: 'PTZ' },
@@ -106,6 +108,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             {activeTab === 'midi' && <MidiTab settings={settings.midi} onSave={v => saveSection('midi', v)} />}
             {activeTab === 'atem' && <AtemTab settings={settings.atem} onSave={v => saveSection('atem', v)} />}
             {activeTab === 'obs' && <ObsSettingsTab settings={settings.obs} onSave={v => saveSection('obs', v)} />}
+            {activeTab === 'vmix' && <VmixSettingsTab settings={settings.vmix} onSave={v => saveSection('vmix', v)} />}
             {activeTab === 'ltc' && <LtcTab settings={settings.ltc} onSave={v => saveSection('ltc', v)} />}
             {activeTab === 'gpi' && <GpiTab settings={settings.gpi} onSave={v => saveSection('gpi', v)} />}
             {activeTab === 'ptz' && <PtzTab settings={settings.ptz} onSave={v => saveSection('ptz', v)} />}

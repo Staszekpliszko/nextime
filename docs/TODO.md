@@ -1447,13 +1447,27 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 26 — vMix HTTP Driver [PLANOWANA]
+## Faza 26 — vMix HTTP Driver [UKOŃCZONA]
 
-- [ ] `electron/senders/vmix-sender.ts` — VmixSender: cut/fade/merge/wipe/zoom/stinger, playMedia, getInputList, getStatus
-- [ ] `electron/senders/vmix-xml-parser.ts` — parsowanie XML stanu vMix
-- [ ] Polling stanu co 500ms
-- [ ] Settings: sekcja vmix w SettingsManager
-- [ ] Testy: ~18
+- [x] `electron/senders/vmix-xml-parser.ts` — parser XML API vMix: parseVmixXml() → VmixState (inputy, active, preview, streaming, recording)
+- [x] `electron/senders/vmix-sender.ts` — VmixSender: connect/disconnect/auto-reconnect, cut/fade/merge/wipe/zoom/stinger, setPreview, playMedia/pauseMedia/setVolume, getInputList/getCurrentState/getStatus/refreshState, handleVisionCueChanged z inputMap, executeTransition wg domyślnego typu, onCommand callback, graceful fallback
+- [x] `electron/senders/index.ts` — VmixSender w SenderManager (attach, destroy)
+- [x] `electron/settings-manager.ts` — VmixSettings (ip, port, enabled, autoSwitch, inputMap, transitionType, transitionDuration), defaults, applyToSenders, applySectionToSender. Fix: parsowanie obiektów JSON z DB (sceneMap, inputMap)
+- [x] `electron/ipc/vmix-ipc.ts` — 10 IPC handlerów (vmixConnect, vmixDisconnect, vmixGetStatus, vmixGetInputs, vmixRefreshInputs, vmixCut, vmixFade, vmixSetPreview, vmixPlayMedia, vmixPauseMedia, vmixSetVolume)
+- [x] `electron/preload.ts` — 11 metod vmix* w contextBridge
+- [x] `src/types/electron.d.ts` — typy vMix w NextimeApi (VmixStatus, VmixInput)
+- [x] `electron/main.ts` — import i rejestracja registerVmixIpcHandlers
+- [x] `src/components/SettingsPanel/VmixSettingsTab.tsx` — zakładka vMix: IP/port/toggle/auto-switch/połącz/rozłącz/status/lista inputów/input map/typ przejścia/czas przejścia/streaming+recording status
+- [x] `src/components/SettingsPanel/SettingsPanel.tsx` — zakładka 'vMix' dodana do TABS
+- [x] 24 nowe testy (6 XML parser + 18 VmixSender), 839 łącznie
+
+- [x] `electron/ipc/settings-ipc.ts` — fix: dodano 'obs' i 'vmix' do validSections (zapis ustawień)
+- [x] `electron/main.ts` — auto-connect vMix/OBS przy starcie (jeśli enabled), DevTools detach mode
+- [x] `electron/senders/vmix-sender.ts` — PreviewInput przed Cut/Fade/Merge/Wipe/Zoom/Stinger (niezawodne przełączanie video→video), aktualizacja stanu po przełączeniu
+- [x] `src/components/Timeline/TimelineCueDialog.tsx` — dropdown Kamera pokazuje inputy vMix (live z API) + status PGM/PRV
+- [x] `src/components/SettingsPanel/VmixSettingsTab.tsx` — potwierdzenie zapisu "Zapisano"
+
+**Statystyki Fazy 26:** 24 nowe testy, 839 łącznie, ~1200 linii nowego kodu
 
 ---
 

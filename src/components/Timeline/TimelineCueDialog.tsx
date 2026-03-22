@@ -4,6 +4,8 @@ import type { TimelineCueSummary } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
 import { framesToTimecode, timecodeToFrames } from '@/utils/timecode';
 import type { MediaFile } from '../../../electron/db/repositories/media-file.repo';
+import type { VmixInput } from '../../../electron/senders/vmix-xml-parser';
+import type { VmixStatus } from '../../../electron/senders/vmix-sender';
 
 /** Mapowanie typ tracka → typ cue */
 const TRACK_TO_CUE_TYPE: Record<string, string> = {
@@ -108,7 +110,34 @@ export function TimelineCueDialog({
   const [mediaOffsetFrames, setMediaOffsetFrames] = useState<number>((existingData.offset_frames as number) ?? 0);
   const [mediaLibraryFiles, setMediaLibraryFiles] = useState<MediaFile[]>([]);
 
+  // vMix inputy i OBS sceny (do dropdown w vision cue)
+  const [vmixInputs, setVmixInputs] = useState<VmixInput[]>([]);
+  const [vmixStatus, setVmixStatus] = useState<VmixStatus | null>(null);
+  const [obsScenes, setObsScenes] = useState<string[]>([]);
+  const [obsConnected, setObsConnected] = useState(false);
+
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Załaduj inputy vMix i sceny OBS (dla dropdown w vision cue)
+  useEffect(() => {
+    if (cueType !== 'vision') return;
+    // vMix
+    window.nextime.vmixGetStatus()
+      .then(s => {
+        const st = s as VmixStatus;
+        setVmixStatus(st);
+        if (st.inputs.length > 0) setVmixInputs(st.inputs);
+      })
+      .catch(() => {});
+    // OBS
+    window.nextime.obsGetStatus()
+      .then(s => {
+        const obs = s as { connected: boolean; scenes: string[] };
+        setObsConnected(obs.connected);
+        if (obs.scenes.length > 0) setObsScenes(obs.scenes);
+      })
+      .catch(() => {});
+  }, [cueType]);
 
   // Faza 24: załaduj pliki z biblioteki mediów (dla dropdown w sekcji media)
   useEffect(() => {
@@ -231,16 +260,30 @@ export function TimelineCueDialog({
           {cueType === 'vision' && (
             <>
               <div className="flex gap-3">
-                <div className="w-24">
-                  <label className="text-[10px] text-slate-500 block mb-0.5">Kamera</label>
+                <div className={vmixInputs.length > 0 || obsScenes.length > 0 ? 'flex-1' : 'w-24'}>
+                  <label className="text-[10px] text-slate-500 block mb-0.5">
+                    Kamera
+                    {vmixStatus?.connected && <span className="text-green-400 ml-1">(vMix)</span>}
+                    {obsConnected && <span className="text-blue-400 ml-1">(OBS)</span>}
+                  </label>
                   <select
                     value={cameraNumber}
                     onChange={e => setCameraNumber(Number(e.target.value))}
                     className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
                   >
-                    {Array.from({ length: 16 }, (_, i) => i + 1).map(n => (
-                      <option key={n} value={n}>Cam {n}</option>
-                    ))}
+                    {vmixInputs.length > 0 ? (
+                      /* Inputy z vMix — pokazuj nazwy */
+                      vmixInputs.map(inp => (
+                        <option key={inp.number} value={inp.number}>
+                          {inp.number} — {inp.title} ({inp.type})
+                        </option>
+                      ))
+                    ) : (
+                      /* Fallback: Cam 1-16 */
+                      Array.from({ length: 16 }, (_, i) => i + 1).map(n => (
+                        <option key={n} value={n}>Cam {n}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div className="flex-1">
@@ -253,6 +296,27 @@ export function TimelineCueDialog({
                   />
                 </div>
               </div>
+              {/* Podgląd aktywnego switcher */}
+              {vmixStatus?.connected && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-slate-500">vMix:</span>
+                  {vmixStatus.activeInput !== null && (
+                    <span className="bg-red-600/30 text-red-300 px-1.5 py-0.5 rounded">
+                      PGM: Input {vmixStatus.activeInput}
+                    </span>
+                  )}
+                  {vmixStatus.previewInput !== null && (
+                    <span className="bg-green-600/20 text-green-300 px-1.5 py-0.5 rounded">
+                      PRV: Input {vmixStatus.previewInput}
+                    </span>
+                  )}
+                </div>
+              )}
+              {obsConnected && obsScenes.length > 0 && (
+                <div className="text-[10px] text-slate-500">
+                  Sceny OBS: {obsScenes.join(', ')}
+                </div>
+              )}
               <div>
                 <label className="text-[10px] text-slate-500 block mb-0.5">Kolor</label>
                 <div className="flex gap-1 flex-wrap">

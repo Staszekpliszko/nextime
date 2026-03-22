@@ -19,10 +19,13 @@ import { PtzSender } from './ptz-sender';
 import type { PtzSenderConfig } from './ptz-sender';
 import { ObsSender } from './obs-sender';
 import type { ObsSenderConfig, ObsStatus } from './obs-sender';
+import { VmixSender } from './vmix-sender';
+import type { VmixSenderConfig, VmixStatus, VmixTransitionType } from './vmix-sender';
+import type { VmixInput, VmixState } from './vmix-xml-parser';
 
 // Re-eksport wszystkich senderów
-export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, ObsSender, validateOscAddress };
-export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig, ObsSenderConfig, ObsStatus };
+export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, ObsSender, VmixSender, validateOscAddress };
+export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig, ObsSenderConfig, ObsStatus, VmixSenderConfig, VmixStatus, VmixTransitionType, VmixInput, VmixState };
 
 // ── SenderManager ───────────────────────────────────────
 
@@ -35,6 +38,7 @@ export interface SenderManagerConfig {
   ltc?: Partial<LtcReaderConfig>;
   ptz?: Partial<PtzSenderConfig>;
   obs?: Partial<ObsSenderConfig>;
+  vmix?: Partial<VmixSenderConfig>;
 }
 
 /**
@@ -50,6 +54,7 @@ export class SenderManager {
   readonly ltc: LtcReader;
   readonly ptz: PtzSender;
   readonly obs: ObsSender;
+  readonly vmix: VmixSender;
 
   constructor(config: SenderManagerConfig = {}) {
     this.osc = new OscSender(config.osc);
@@ -60,6 +65,7 @@ export class SenderManager {
     this.ltc = new LtcReader(config.ltc);
     this.ptz = new PtzSender(config.ptz);
     this.obs = new ObsSender(config.obs);
+    this.vmix = new VmixSender(config.vmix);
   }
 
   /** Podpina wszystkie sendery do engine */
@@ -72,6 +78,7 @@ export class SenderManager {
     this.ltc.attach(engine);
     this.ptz.attach(engine);
     this.obs.attach(engine);
+    this.vmix.attach(engine);
     console.log('[SenderManager] Wszystkie sendery podpięte do engine');
   }
 
@@ -85,6 +92,7 @@ export class SenderManager {
     this.ltc.destroy();
     this.ptz.destroy();
     this.obs.destroy();
+    this.vmix.destroy();
     console.log('[SenderManager] Wszystkie sendery zniszczone');
   }
 }

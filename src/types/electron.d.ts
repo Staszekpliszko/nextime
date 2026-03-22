@@ -7,6 +7,8 @@ import type { Track, CreateTrackInput, UpdateTrackInput } from '../../electron/d
 import type { TimelineCue, CreateTimelineCueInput, UpdateTimelineCueInput } from '../../electron/db/repositories/timeline-cue.repo';
 import type { AtemStatus } from '../../electron/senders/atem-sender';
 import type { ObsStatus } from '../../electron/senders/obs-sender';
+import type { VmixStatus } from '../../electron/senders/vmix-sender';
+import type { VmixInput } from '../../electron/senders/vmix-xml-parser';
 import type { AllSettings, SettingsSection } from '../../electron/settings-manager';
 import type { DisplayInfo, OpenWindowInfo } from '../../electron/window-manager';
 import type { TextVariable, CreateTextVariableInput, UpdateTextVariableInput } from '../../electron/db/repositories/text-variable.repo';
@@ -176,6 +178,19 @@ export interface NextimeApi {
   obsSetScene(sceneName: string): Promise<{ ok: boolean; error?: string }>;
   obsSetPreview(sceneName: string): Promise<{ ok: boolean; error?: string }>;
   obsTriggerTransition(transitionName?: string, durationMs?: number): Promise<{ ok: boolean; error?: string }>;
+
+  // ── vMix (Faza 26) ────────────────────────────────────────
+  vmixConnect(): Promise<{ ok: boolean; error?: string }>;
+  vmixDisconnect(): Promise<void>;
+  vmixGetStatus(): Promise<VmixStatus>;
+  vmixGetInputs(): Promise<VmixInput[]>;
+  vmixRefreshInputs(): Promise<VmixInput[]>;
+  vmixCut(input: number): Promise<{ ok: boolean; error?: string }>;
+  vmixFade(input: number, durationMs?: number): Promise<{ ok: boolean; error?: string }>;
+  vmixSetPreview(input: number): Promise<{ ok: boolean; error?: string }>;
+  vmixPlayMedia(input: number): Promise<{ ok: boolean; error?: string }>;
+  vmixPauseMedia(input: number): Promise<{ ok: boolean; error?: string }>;
+  vmixSetVolume(input: number, volume: number): Promise<{ ok: boolean; error?: string }>;
 
   // ── ATEM ────────────────────────────────────────────────
   atemGetStatus(): Promise<AtemStatus>;

@@ -62,6 +62,16 @@ export interface ObsSettings {
   sceneMap: Record<number, string>;
 }
 
+export interface VmixSettings {
+  ip: string;
+  port: number;
+  enabled: boolean;
+  autoSwitch: boolean;
+  inputMap: Record<number, number>;
+  transitionType: 'Cut' | 'Fade' | 'Merge' | 'Wipe' | 'Zoom' | 'Stinger1' | 'Stinger2';
+  transitionDuration: number;
+}
+
 export interface AllSettings {
   osc: OscSettings;
   midi: MidiSettings;
@@ -70,6 +80,7 @@ export interface AllSettings {
   gpi: GpiSettings;
   ptz: PtzSettings;
   obs: ObsSettings;
+  vmix: VmixSettings;
 }
 
 // ── Domyślne wartości ───────────────────────────────────
@@ -82,6 +93,7 @@ const DEFAULTS: AllSettings = {
   gpi: { enabled: false, defaultPulseMs: 100, portPath: '', baudRate: 9600 },
   ptz: { enabled: false, cameras: [] },
   obs: { ip: '127.0.0.1', port: 4455, password: '', enabled: false, autoSwitch: true, sceneMap: {} },
+  vmix: { ip: '127.0.0.1', port: 8088, enabled: false, autoSwitch: true, inputMap: {}, transitionType: 'Cut', transitionDuration: 0 },
 };
 
 // ── Typ sekcji ──────────────────────────────────────────
@@ -125,7 +137,7 @@ export class SettingsManager {
           if (isNaN(parsed as number)) continue; // pomiń nieprawidłowe
         } else if (typeof defaultVal === 'boolean') {
           parsed = dbValue === 'true';
-        } else if (Array.isArray(defaultVal)) {
+        } else if (Array.isArray(defaultVal) || (typeof defaultVal === 'object' && defaultVal !== null)) {
           try { parsed = JSON.parse(dbValue); } catch { continue; }
         } else {
           parsed = dbValue;
@@ -236,6 +248,18 @@ export class SettingsManager {
       sceneMap: obs.sceneMap,
     });
 
+    // vMix
+    const vmix = this.cache.vmix;
+    senderManager.vmix.updateConfig({
+      ip: vmix.ip,
+      port: vmix.port,
+      enabled: vmix.enabled,
+      autoSwitch: vmix.autoSwitch,
+      inputMap: vmix.inputMap,
+      transitionType: vmix.transitionType,
+      transitionDuration: vmix.transitionDuration,
+    });
+
     console.log('[SettingsManager] Ustawienia zastosowane do senderów');
   }
 
@@ -281,6 +305,17 @@ export class SettingsManager {
           enabled: this.cache.obs.enabled,
           autoSwitch: this.cache.obs.autoSwitch,
           sceneMap: this.cache.obs.sceneMap,
+        });
+        break;
+      case 'vmix':
+        senderManager.vmix.updateConfig({
+          ip: this.cache.vmix.ip,
+          port: this.cache.vmix.port,
+          enabled: this.cache.vmix.enabled,
+          autoSwitch: this.cache.vmix.autoSwitch,
+          inputMap: this.cache.vmix.inputMap,
+          transitionType: this.cache.vmix.transitionType,
+          transitionDuration: this.cache.vmix.transitionDuration,
         });
         break;
     }

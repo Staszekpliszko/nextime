@@ -1,0 +1,56 @@
+{
+  "device": "qlab",
+  "label": "QLab",
+  "commands": [
+    {
+      "name": "go",
+      "label": "Go (uruchom aktualny cue)",
+      "address": "/go",
+      "args": []
+    },
+    {
+      "name": "stop",
+      "label": "Stop (zatrzymaj aktualny cue)",
+      "address": "/stop",
+      "args": []
+    },
+    {
+      "name": "pause",
+      "label": "Pause",
+      "address": "/pause",
+      "args": []
+    },
+    {
+      "name": "resume",
+      "label": "Resume",
+      "address": "/resume",
+      "args": []
+    },
+    {
+      "name": "select_cue",
+      "label": "Wybierz cue po numerze",
+      "address": "/select/{cue_number}",
+      "args": [
+        { "name": "cue_number", "type": "s", "default": "1" }
+      ]
+    },
+    {
+      "name": "go_cue",
+      "label": "Go na konkretnym cue",
+      "address": "/cue/{cue_number}/start",
+      "args": [
+        { "name": "cue_number", "type": "s", "default": "1" }
+      ]
+    },
+    {
+      "name": "set_volume",
+      "label": "Ustaw głośność cue",
+      "address": "/cue/{cue_number}/sliderLevel",
+      "args": [
+        { "name": "cue_number", "type": "s", "default": "1" },
+        { "name": "row", "type": "i", "default": 0, "min": 0, "max": 64 },
+        { "name": "level_db", "type": "f", "default": 0, "min": -60, "max": 12 }
+      ]
+    }
+  ]
+}

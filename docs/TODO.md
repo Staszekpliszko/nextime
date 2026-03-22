@@ -1532,12 +1532,17 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 31 — OSC Custom Schemas [PLANOWANA]
+## Faza 31 — OSC Custom Schemas [UKOŃCZONA]
 
-- [ ] `electron/osc-schemas/schema-loader.ts` — loader JSON schematów
-- [ ] `assets/osc-schemas/` — disguise, casparcg, qlab, ross, generic (.json)
-- [ ] `OscCueEditor.tsx` — dropdown urządzenie → komenda → argumenty
-- [ ] Testy: ~12
+- [x] `electron/osc-schemas/schema-loader.ts` — loader JSON schematów z walidacją, cache, buildOscAddress()
+- [x] `assets/osc-schemas/` — 5 schematów: disguise.json, casparcg.json, qlab.json, ross.json, generic.json
+- [x] `src/components/Timeline/OscCueEditor.tsx` — dropdown urządzenie → komenda → dynamiczne argumenty + fallback surowy tryb
+- [x] `src/components/Timeline/TimelineCueDialog.tsx` — integracja OscCueEditor (zamiana ręcznych inputów OSC)
+- [x] `electron/preload.ts` + `electron/main.ts` — IPC: nextime:getOscSchemas
+- [x] `src/types/electron.d.ts` — typ getOscSchemas()
+- [x] Testy: 18 (tests/unit/osc-schemas.test.ts)
+
+**Statystyki Fazy 31:** 897 testów (879 + 18 nowych), 8 plików nowych/zmodyfikowanych
 
 ---
 

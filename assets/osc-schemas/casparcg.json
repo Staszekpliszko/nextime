@@ -1,0 +1,57 @@
+{
+  "device": "casparcg",
+  "label": "CasparCG",
+  "commands": [
+    {
+      "name": "play",
+      "label": "Play (kanał/warstwa)",
+      "address": "/channel/{channel}/layer/{layer}/play",
+      "args": [
+        { "name": "channel", "type": "i", "default": 1, "min": 1, "max": 16 },
+        { "name": "layer", "type": "i", "default": 10, "min": 0, "max": 999 },
+        { "name": "clip", "type": "s", "default": "" }
+      ]
+    },
+    {
+      "name": "stop",
+      "label": "Stop (kanał/warstwa)",
+      "address": "/channel/{channel}/layer/{layer}/stop",
+      "args": [
+        { "name": "channel", "type": "i", "default": 1, "min": 1, "max": 16 },
+        { "name": "layer", "type": "i", "default": 10, "min": 0, "max": 999 }
+      ]
+    },
+    {
+      "name": "load",
+      "label": "Load (załaduj bez play)",
+      "address": "/channel/{channel}/layer/{layer}/load",
+      "args": [
+        { "name": "channel", "type": "i", "default": 1, "min": 1, "max": 16 },
+        { "name": "layer", "type": "i", "default": 10, "min": 0, "max": 999 },
+        { "name": "clip", "type": "s", "default": "" }
+      ]
+    },
+    {
+      "name": "mixer_opacity",
+      "label": "Mixer Opacity",
+      "address": "/channel/{channel}/layer/{layer}/mixer/opacity",
+      "args": [
+        { "name": "channel", "type": "i", "default": 1, "min": 1, "max": 16 },
+        { "name": "layer", "type": "i", "default": 10, "min": 0, "max": 999 },
+        { "name": "opacity", "type": "f", "default": 1.0, "min": 0, "max": 1 },
+        { "name": "duration", "type": "i", "default": 0, "min": 0 }
+      ]
+    },
+    {
+      "name": "cg_add",
+      "label": "CG Add (grafika)",
+      "address": "/channel/{channel}/layer/{layer}/cg/add",
+      "args": [
+        { "name": "channel", "type": "i", "default": 1, "min": 1, "max": 16 },
+        { "name": "layer", "type": "i", "default": 10, "min": 0, "max": 999 },
+        { "name": "template", "type": "s", "default": "" },
+        { "name": "play_on_load", "type": "b", "default": true }
+      ]
+    }
+  ]
+}

@@ -383,6 +383,11 @@ contextBridge.exposeInMainWorld('nextime', {
   getUndoState: (): Promise<{ canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }> =>
     ipcRenderer.invoke('nextime:getUndoState'),
 
+  // ── OSC Schemas (Faza 31) ──────────────────────────────────
+  /** Pobiera załadowane schematy OSC (disguise, CasparCG, QLab, etc.) */
+  getOscSchemas: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:getOscSchemas'),
+
   // ── OSC Sender (Faza 17) ────────────────────────────────────
   /** Wysyła testowy pakiet OSC i zwraca wynik */
   oscTestSend: (): Promise<{ ok: boolean; error?: string }> =>

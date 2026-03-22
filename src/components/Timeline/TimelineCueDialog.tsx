@@ -6,6 +6,8 @@ import { framesToTimecode, timecodeToFrames } from '@/utils/timecode';
 import type { MediaFile } from '../../../electron/db/repositories/media-file.repo';
 import type { VmixInput } from '../../../electron/senders/vmix-xml-parser';
 import type { VmixStatus } from '../../../electron/senders/vmix-sender';
+import { OscCueEditor } from './OscCueEditor';
+import type { OscCueData } from './OscCueEditor';
 
 /** Mapowanie typ tracka → typ cue */
 const TRACK_TO_CUE_TYPE: Record<string, string> = {
@@ -99,13 +101,18 @@ export function TimelineCueDialog({
   const [markerLabel, setMarkerLabel] = useState<string>((existingData.label as string) ?? '');
   const [markerColor, setMarkerColor] = useState<string>((existingData.color as string) ?? '#ef4444');
 
-  // OSC
-  const [oscAddress, setOscAddress] = useState<string>((existingData.address as string) ?? '');
-  const [oscArgs, setOscArgs] = useState<string>(
-    existingData.args ? JSON.stringify(existingData.args) : '[]',
-  );
-  const [oscHost, setOscHost] = useState<string>((existingData.host as string) ?? '127.0.0.1');
-  const [oscPort, setOscPort] = useState<number>((existingData.port as number) ?? 8000);
+  // OSC (Faza 31 — OscCueEditor zarządza stanem, tu trzymamy ref na dane)
+  const oscCueDataRef = useRef<OscCueData>({
+    device: (existingData.device as string) ?? 'generic',
+    command_name: (existingData.command_name as string) ?? 'custom',
+    address: (existingData.address as string) ?? '',
+    args: Array.isArray(existingData.args) ? existingData.args as OscCueData['args'] : [],
+    host: (existingData.host as string) ?? '127.0.0.1',
+    port: (existingData.port as number) ?? 8000,
+  });
+  const handleOscChange = useCallback((data: OscCueData) => {
+    oscCueDataRef.current = data;
+  }, []);
 
   // MIDI
   const [midiMessageType, setMidiMessageType] = useState<string>((existingData.message_type as string) ?? 'note_on');
@@ -228,9 +235,18 @@ export function TimelineCueDialog({
       case 'marker':
         return { label: markerLabel, color: markerColor, pre_warn_frames: markerPreWarnFrames, has_duration: !!tcOutStr };
       case 'osc': {
-        let parsedArgs: unknown[] = [];
-        try { parsedArgs = JSON.parse(oscArgs); } catch { /* ignoruj */ }
-        return { address: oscAddress, args: parsedArgs, host: oscHost, port: oscPort };
+        // Faza 31 — dane z OscCueEditor (schemat lub surowy tryb)
+        const osc = oscCueDataRef.current;
+        return {
+          device: osc.device,
+          command_name: osc.command_name,
+          address: osc.address,
+          args: osc.args,
+          host: osc.host,
+          port: osc.port,
+          // Zachowaj arg_values do odtworzenia edycji
+          ...((osc as unknown as Record<string, unknown>).arg_values ? { arg_values: (osc as unknown as Record<string, unknown>).arg_values } : {}),
+        };
       }
       case 'midi':
         return { message_type: midiMessageType, channel: midiChannel, note_or_cc: midiNoteOrCc, velocity_or_val: midiVelocity };
@@ -242,7 +258,7 @@ export function TimelineCueDialog({
         return {};
     }
   }, [cueType, cameraNumber, shotName, visionColor, transitionType, transitionDurationMs, lyricText, markerLabel, markerColor, markerPreWarnFrames,
-      oscAddress, oscArgs, oscHost, oscPort, midiMessageType, midiChannel, midiNoteOrCc, midiVelocity,
+      midiMessageType, midiChannel, midiNoteOrCc, midiVelocity,
       gpiChannel, gpiTriggerType, gpiPulseMs, mediaFilePath, mediaVolume, mediaLoop, mediaOffsetFrames, tcOutStr,
       fxAction, fxMacroIndex, fxDskKeyIndex, fxDskOnAir, fxUskMeIndex, fxUskKeyIndex, fxUskOnAir,
       fxSsBoxIndex, fxSsSource, fxSsEnabled, fxSsX, fxSsY, fxSsSize, fxEffectName]);
@@ -631,48 +647,10 @@ export function TimelineCueDialog({
           )}
 
           {cueType === 'osc' && (
-            <>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[10px] text-slate-500 block mb-0.5">Host</label>
-                  <input
-                    value={oscHost}
-                    onChange={e => setOscHost(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
-                    placeholder="127.0.0.1"
-                  />
-                </div>
-                <div className="w-24">
-                  <label className="text-[10px] text-slate-500 block mb-0.5">Port</label>
-                  <input
-                    type="number"
-                    min={1} max={65535}
-                    value={oscPort}
-                    onChange={e => setOscPort(Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-0.5">Adres OSC</label>
-                <input
-                  value={oscAddress}
-                  onChange={e => setOscAddress(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
-                  placeholder="/layer/1/opacity"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-0.5">Argumenty (JSON)</label>
-                <input
-                  value={oscArgs}
-                  onChange={e => setOscArgs(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
-                  placeholder='[{"type":"f","value":1.0}]'
-                />
-                <span className="text-[9px] text-slate-600">{'Format: [{"type":"f","value":1.0}]  Typy: i=int, f=float, s=string'}</span>
-              </div>
-            </>
+            <OscCueEditor
+              existingData={existingData}
+              onChange={handleOscChange}
+            />
           )}
 
           {cueType === 'midi' && (

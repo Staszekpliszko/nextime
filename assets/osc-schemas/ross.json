@@ -1,0 +1,55 @@
+{
+  "device": "ross",
+  "label": "Ross Dashboard",
+  "commands": [
+    {
+      "name": "cut",
+      "label": "CUT",
+      "address": "/ross/cmd/cut",
+      "args": [
+        { "name": "bus", "type": "i", "default": 0, "min": 0, "max": 7 }
+      ]
+    },
+    {
+      "name": "auto",
+      "label": "AUTO (transition)",
+      "address": "/ross/cmd/auto",
+      "args": [
+        { "name": "bus", "type": "i", "default": 0, "min": 0, "max": 7 }
+      ]
+    },
+    {
+      "name": "key_on",
+      "label": "Key ON",
+      "address": "/ross/cmd/key_on",
+      "args": [
+        { "name": "keyer", "type": "i", "default": 1, "min": 1, "max": 4 }
+      ]
+    },
+    {
+      "name": "key_off",
+      "label": "Key OFF",
+      "address": "/ross/cmd/key_off",
+      "args": [
+        { "name": "keyer", "type": "i", "default": 1, "min": 1, "max": 4 }
+      ]
+    },
+    {
+      "name": "macro_recall",
+      "label": "Recall Macro",
+      "address": "/ross/cmd/macro",
+      "args": [
+        { "name": "macro_id", "type": "i", "default": 1, "min": 1, "max": 999 }
+      ]
+    },
+    {
+      "name": "cc_recall",
+      "label": "Custom Control Recall",
+      "address": "/ross/cc/recall",
+      "args": [
+        { "name": "bank", "type": "i", "default": 1, "min": 1, "max": 99 },
+        { "name": "cc_id", "type": "i", "default": 1, "min": 1, "max": 32 }
+      ]
+    }
+  ]
+}

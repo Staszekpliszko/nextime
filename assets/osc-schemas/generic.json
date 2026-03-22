@@ -1,0 +1,12 @@
+{
+  "device": "generic",
+  "label": "Własny (surowy OSC)",
+  "commands": [
+    {
+      "name": "custom",
+      "label": "Własna komenda OSC",
+      "address": "",
+      "args": []
+    }
+  ]
+}

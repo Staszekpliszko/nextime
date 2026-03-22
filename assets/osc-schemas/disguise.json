@@ -1,0 +1,52 @@
+{
+  "device": "disguise",
+  "label": "disguise (d3)",
+  "commands": [
+    {
+      "name": "transport_play",
+      "label": "Transport Play",
+      "address": "/d3/showcontrol/play",
+      "args": []
+    },
+    {
+      "name": "transport_stop",
+      "label": "Transport Stop",
+      "address": "/d3/showcontrol/stop",
+      "args": []
+    },
+    {
+      "name": "transport_goto",
+      "label": "Transport Go To (sekcja + czas)",
+      "address": "/d3/showcontrol/goto",
+      "args": [
+        { "name": "section", "type": "s", "default": "" },
+        { "name": "time_seconds", "type": "f", "default": 0, "min": 0 }
+      ]
+    },
+    {
+      "name": "cue_recall",
+      "label": "Cue Recall",
+      "address": "/d3/showcontrol/cue",
+      "args": [
+        { "name": "cue_path", "type": "s", "default": "" }
+      ]
+    },
+    {
+      "name": "layer_opacity",
+      "label": "Layer Opacity",
+      "address": "/d3/layer/opacity",
+      "args": [
+        { "name": "layer_name", "type": "s", "default": "" },
+        { "name": "opacity", "type": "f", "default": 1.0, "min": 0, "max": 1 }
+      ]
+    },
+    {
+      "name": "note_trigger",
+      "label": "Wyślij notatkę",
+      "address": "/d3/showcontrol/note",
+      "args": [
+        { "name": "note_text", "type": "s", "default": "" }
+      ]
+    }
+  ]
+}

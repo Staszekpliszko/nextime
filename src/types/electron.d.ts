@@ -206,6 +206,9 @@ export interface NextimeApi {
   atemCut(input: number): Promise<void>;
   atemPreview(input: number): Promise<void>;
 
+  // ── OSC Schemas (Faza 31) ───────────────────────────────
+  getOscSchemas(): Promise<Array<{ device: string; label: string; commands: Array<{ name: string; label: string; address: string; args: Array<{ name: string; type: 'i' | 'f' | 's' | 'b'; default?: number | string | boolean; min?: number; max?: number }> }> }>>;
+
   // ── OSC Sender (Faza 17) ────────────────────────────────
   oscTestSend(): Promise<{ ok: boolean; error?: string }>;
   oscGetConfig(): Promise<{ host: string; port: number; enabled: boolean }>;

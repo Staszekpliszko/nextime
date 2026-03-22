@@ -15,6 +15,7 @@ import { registerVmixIpcHandlers } from './ipc/vmix-ipc';
 import { registerSwitcherIpcHandlers } from './ipc/switcher-ipc';
 import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
+import { loadSchemas as loadOscSchemas } from './osc-schemas/schema-loader';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
 import { probeMediaFile, generateWaveform, MediaIpcBridge } from './media';
@@ -1140,6 +1141,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle('nextime:oscUpdateConfig', (_event, config: Record<string, unknown>) => {
     if (!senderManager) return;
     senderManager.osc.updateConfig(config as Partial<import('./senders/osc-sender').OscSenderConfig>);
+  });
+
+  // ── OSC Schemas (Faza 31) ─────────────────────────────────
+
+  ipcMain.handle('nextime:getOscSchemas', () => {
+    const schemasDir = app.isPackaged
+      ? path.join(process.resourcesPath, 'assets', 'osc-schemas')
+      : path.join(app.getAppPath(), 'assets', 'osc-schemas');
+    return loadOscSchemas(schemasDir);
   });
 
   // ── MIDI Sender (Faza 17) ──────────────────────────────────

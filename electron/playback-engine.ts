@@ -720,6 +720,7 @@ export class PlaybackEngine extends EventEmitter {
       case 'midi': this.emit('midi-trigger', cue); break;
       case 'gpi': this.emit('gpi-trigger', cue); break;
       case 'media': this.emit('media-trigger', cue); break;
+      case 'vision_fx': this.emit('vision-fx-trigger', cue); break;
     }
   }
 

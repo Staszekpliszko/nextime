@@ -22,7 +22,7 @@ const TRACK_DEFAULT_NAMES: Record<string, string> = {
 };
 
 /** Typy tracków dostępne do dodania */
-const TRACK_TYPES = ['vision', 'lyrics', 'cues', 'osc', 'midi', 'gpi', 'media'] as const;
+const TRACK_TYPES = ['vision', 'vision_fx', 'lyrics', 'cues', 'osc', 'midi', 'gpi', 'media'] as const;
 
 interface TimelineProps {
   sendCommand: (event: string, payload?: Record<string, unknown>) => void;

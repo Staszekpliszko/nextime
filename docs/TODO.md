@@ -1518,12 +1518,17 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 30 — ATEM Macros, DSK, SuperSource [PLANOWANA]
+## Faza 30 — ATEM Macros, DSK, SuperSource [UKOŃCZONA]
 
-- [ ] `electron/senders/atem-fx-handler.ts` — handler vision_fx: macro → macroRun(), key_on → setDSK()
-- [ ] atem-sender.ts — runMacro(), setDownstreamKey(), setUpstreamKey()
-- [ ] PlaybackEngine — case 'vision_fx' → emit 'vision-fx-trigger'
-- [ ] Testy: ~15
+- [x] `electron/senders/atem-fx-handler.ts` — handler vision_fx: macro → macroRun(), DSK on/off, USK on/off, SuperSource box config
+- [x] atem-sender.ts — runMacro(), setDownstreamKey(), setUpstreamKey(), setSuperSourceBox() + rozszerzony AtemInstance interface
+- [x] PlaybackEngine — case 'vision_fx' → emit 'vision-fx-trigger'
+- [x] electron/senders/index.ts — AtemFxHandler w SenderManager (attach/destroy)
+- [x] TimelineCueDialog — pełny formularz vision_fx z 4 trybami (Makro/DSK/USK/SuperSource)
+- [x] Timeline.tsx — dodano 'vision_fx' do TRACK_TYPES (dropdown „+ Dodaj track")
+- [x] Testy: 16 (tests/unit/atem-fx.test.ts)
+
+**Statystyki Fazy 30:** 879 testów (863 + 16 nowych), 6 plików nowych/zmodyfikowanych
 
 ---
 

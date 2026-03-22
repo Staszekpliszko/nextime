@@ -10,7 +10,7 @@ import type { SerialPortInfo, GpiSerialResult } from './gpi-serial';
 import { MediaSender } from './media-sender';
 import type { MediaSenderConfig } from './media-sender';
 import { AtemSender } from './atem-sender';
-import type { AtemSenderConfig, AtemStatus } from './atem-sender';
+import type { AtemSenderConfig, AtemStatus, SuperSourceBoxConfig } from './atem-sender';
 import { LtcReader } from './ltc-reader';
 import type { LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo } from './ltc-reader';
 import { MtcParser } from './mtc-parser';
@@ -24,10 +24,12 @@ import type { VmixSenderConfig, VmixStatus, VmixTransitionType } from './vmix-se
 import type { VmixInput, VmixState } from './vmix-xml-parser';
 import { VisionRouter } from './vision-router';
 import type { VisionRouterConfig, TargetSwitcher, VisionTransitionType } from './vision-router';
+import { AtemFxHandler } from './atem-fx-handler';
+import type { VisionFxData, AtemFxAction } from './atem-fx-handler';
 
 // Re-eksport wszystkich senderów
-export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, ObsSender, VmixSender, VisionRouter, validateOscAddress };
-export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig, ObsSenderConfig, ObsStatus, VmixSenderConfig, VmixStatus, VmixTransitionType, VmixInput, VmixState, VisionRouterConfig, TargetSwitcher, VisionTransitionType };
+export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, ObsSender, VmixSender, VisionRouter, AtemFxHandler, validateOscAddress };
+export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, SuperSourceBoxConfig, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig, ObsSenderConfig, ObsStatus, VmixSenderConfig, VmixStatus, VmixTransitionType, VmixInput, VmixState, VisionRouterConfig, TargetSwitcher, VisionTransitionType, VisionFxData, AtemFxAction };
 
 // ── SenderManager ───────────────────────────────────────
 
@@ -61,6 +63,7 @@ export class SenderManager {
   readonly obs: ObsSender;
   readonly vmix: VmixSender;
   readonly visionRouter: VisionRouter;
+  readonly atemFx: AtemFxHandler;
 
   constructor(config: SenderManagerConfig = {}) {
     this.osc = new OscSender(config.osc);
@@ -76,6 +79,9 @@ export class SenderManager {
     // VisionRouter — centralny routing vision cue → aktywny switcher
     this.visionRouter = new VisionRouter(config.vision);
     this.visionRouter.setSenders({ atem: this.atem, obs: this.obs, vmix: this.vmix });
+
+    // AtemFxHandler — obsługa vision_fx cue'ów (macro, DSK, USK, SuperSource)
+    this.atemFx = new AtemFxHandler(this.atem);
   }
 
   /** Podpina wszystkie sendery do engine */
@@ -91,6 +97,8 @@ export class SenderManager {
     this.vmix.attach(engine);
     // VisionRouter — centralny nasłuch vision-cue-changed
     this.visionRouter.attach(engine);
+    // AtemFxHandler — nasłuch vision-fx-trigger
+    this.atemFx.attach(engine);
     console.log('[SenderManager] Wszystkie sendery podpięte do engine');
   }
 
@@ -106,6 +114,7 @@ export class SenderManager {
     this.obs.destroy();
     this.vmix.destroy();
     this.visionRouter.destroy();
+    this.atemFx.destroy();
     console.log('[SenderManager] Wszystkie sendery zniszczone');
   }
 }

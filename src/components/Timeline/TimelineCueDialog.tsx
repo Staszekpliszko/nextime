@@ -76,6 +76,22 @@ export function TimelineCueDialog({
   const [transitionType, setTransitionType] = useState<string>((existingData.transition_type as string) ?? 'Cut');
   const [transitionDurationMs, setTransitionDurationMs] = useState<number>((existingData.transition_duration_ms as number) ?? 500);
 
+  // Vision FX (Faza 30)
+  const [fxAction, setFxAction] = useState<string>((existingData.fx_action as string) ?? 'macro');
+  const [fxMacroIndex, setFxMacroIndex] = useState<number>((existingData.macro_index as number) ?? 0);
+  const [fxDskKeyIndex, setFxDskKeyIndex] = useState<number>((existingData.dsk_key_index as number) ?? 0);
+  const [fxDskOnAir, setFxDskOnAir] = useState<boolean>((existingData.dsk_on_air as boolean) ?? true);
+  const [fxUskMeIndex, setFxUskMeIndex] = useState<number>((existingData.usk_me_index as number) ?? 0);
+  const [fxUskKeyIndex, setFxUskKeyIndex] = useState<number>((existingData.usk_key_index as number) ?? 0);
+  const [fxUskOnAir, setFxUskOnAir] = useState<boolean>((existingData.usk_on_air as boolean) ?? true);
+  const [fxSsBoxIndex, setFxSsBoxIndex] = useState<number>((existingData.ss_box_index as number) ?? 0);
+  const [fxSsSource, setFxSsSource] = useState<number>((existingData.ss_source as number) ?? 1);
+  const [fxSsEnabled, setFxSsEnabled] = useState<boolean>((existingData.ss_enabled as boolean) ?? true);
+  const [fxSsX, setFxSsX] = useState<number>((existingData.ss_x as number) ?? 0);
+  const [fxSsY, setFxSsY] = useState<number>((existingData.ss_y as number) ?? 0);
+  const [fxSsSize, setFxSsSize] = useState<number>((existingData.ss_size as number) ?? 1000);
+  const [fxEffectName, setFxEffectName] = useState<string>((existingData.effect_name as string) ?? '');
+
   // Lyric
   const [lyricText, setLyricText] = useState<string>((existingData.text as string) ?? '');
 
@@ -192,8 +208,21 @@ export function TimelineCueDialog({
           transition_type: transitionType,
           transition_duration_ms: transitionType !== 'Cut' ? transitionDurationMs : 0,
         };
-      case 'vision_fx':
-        return { effect_name: shotName || 'FX', macro_id: undefined, key_on: true };
+      case 'vision_fx': {
+        const fxBase = { fx_action: fxAction, effect_name: fxEffectName || fxAction.toUpperCase() };
+        switch (fxAction) {
+          case 'macro':
+            return { ...fxBase, macro_index: fxMacroIndex };
+          case 'dsk':
+            return { ...fxBase, dsk_key_index: fxDskKeyIndex, dsk_on_air: fxDskOnAir };
+          case 'usk':
+            return { ...fxBase, usk_me_index: fxUskMeIndex, usk_key_index: fxUskKeyIndex, usk_on_air: fxUskOnAir };
+          case 'supersource':
+            return { ...fxBase, ss_box_index: fxSsBoxIndex, ss_source: fxSsSource, ss_enabled: fxSsEnabled, ss_x: fxSsX, ss_y: fxSsY, ss_size: fxSsSize };
+          default:
+            return fxBase;
+        }
+      }
       case 'lyric':
         return { text: lyricText, language: 'pl' };
       case 'marker':
@@ -214,7 +243,9 @@ export function TimelineCueDialog({
     }
   }, [cueType, cameraNumber, shotName, visionColor, transitionType, transitionDurationMs, lyricText, markerLabel, markerColor, markerPreWarnFrames,
       oscAddress, oscArgs, oscHost, oscPort, midiMessageType, midiChannel, midiNoteOrCc, midiVelocity,
-      gpiChannel, gpiTriggerType, gpiPulseMs, mediaFilePath, mediaVolume, mediaLoop, mediaOffsetFrames, tcOutStr]);
+      gpiChannel, gpiTriggerType, gpiPulseMs, mediaFilePath, mediaVolume, mediaLoop, mediaOffsetFrames, tcOutStr,
+      fxAction, fxMacroIndex, fxDskKeyIndex, fxDskOnAir, fxUskMeIndex, fxUskKeyIndex, fxUskOnAir,
+      fxSsBoxIndex, fxSsSource, fxSsEnabled, fxSsX, fxSsY, fxSsSize, fxEffectName]);
 
   const handleSubmit = useCallback(() => {
     const tcIn = timecodeToFrames(tcInStr, fps);
@@ -367,6 +398,185 @@ export function TimelineCueDialog({
                   </div>
                 )}
               </div>
+            </>
+          )}
+
+          {cueType === 'vision_fx' && (
+            <>
+              <div>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Nazwa efektu</label>
+                <input
+                  value={fxEffectName}
+                  onChange={e => setFxEffectName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                  placeholder="np. DSK Logo, Macro Intro"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Akcja FX</label>
+                <select
+                  value={fxAction}
+                  onChange={e => setFxAction(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                >
+                  <option value="macro">Makro ATEM</option>
+                  <option value="dsk">DSK (Downstream Key)</option>
+                  <option value="usk">USK (Upstream Key)</option>
+                  <option value="supersource">SuperSource</option>
+                </select>
+              </div>
+
+              {/* Macro */}
+              {fxAction === 'macro' && (
+                <div>
+                  <label className="text-[10px] text-slate-500 block mb-0.5">Numer makra (0-99)</label>
+                  <input
+                    type="number"
+                    min={0} max={99}
+                    value={fxMacroIndex}
+                    onChange={e => setFxMacroIndex(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* DSK */}
+              {fxAction === 'dsk' && (
+                <div className="flex gap-3 items-end">
+                  <div className="w-28">
+                    <label className="text-[10px] text-slate-500 block mb-0.5">Key index (0-3)</label>
+                    <select
+                      value={fxDskKeyIndex}
+                      onChange={e => setFxDskKeyIndex(Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                    >
+                      {[0, 1, 2, 3].map(n => (
+                        <option key={n} value={n}>DSK {n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-1 text-xs text-slate-300 pb-1">
+                    <input
+                      type="checkbox"
+                      checked={fxDskOnAir}
+                      onChange={e => setFxDskOnAir(e.target.checked)}
+                      className="rounded"
+                    />
+                    Na wizji
+                  </label>
+                </div>
+              )}
+
+              {/* USK */}
+              {fxAction === 'usk' && (
+                <>
+                  <div className="flex gap-3">
+                    <div className="w-24">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">ME</label>
+                      <select
+                        value={fxUskMeIndex}
+                        onChange={e => setFxUskMeIndex(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                      >
+                        {[0, 1, 2, 3].map(n => (
+                          <option key={n} value={n}>ME {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-28">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Key index (0-3)</label>
+                      <select
+                        value={fxUskKeyIndex}
+                        onChange={e => setFxUskKeyIndex(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                      >
+                        {[0, 1, 2, 3].map(n => (
+                          <option key={n} value={n}>Key {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-1 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={fxUskOnAir}
+                      onChange={e => setFxUskOnAir(e.target.checked)}
+                      className="rounded"
+                    />
+                    Na wizji
+                  </label>
+                </>
+              )}
+
+              {/* SuperSource */}
+              {fxAction === 'supersource' && (
+                <>
+                  <div className="flex gap-3">
+                    <div className="w-24">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Box (0-3)</label>
+                      <select
+                        value={fxSsBoxIndex}
+                        onChange={e => setFxSsBoxIndex(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                      >
+                        {[0, 1, 2, 3].map(n => (
+                          <option key={n} value={n}>Box {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-24">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Źródło</label>
+                      <input
+                        type="number"
+                        min={1} max={40}
+                        value={fxSsSource}
+                        onChange={e => setFxSsSource(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                    </div>
+                    <label className="flex items-center gap-1 text-xs text-slate-300 pb-1 self-end">
+                      <input
+                        type="checkbox"
+                        checked={fxSsEnabled}
+                        onChange={e => setFxSsEnabled(e.target.checked)}
+                        className="rounded"
+                      />
+                      Aktywny
+                    </label>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">X</label>
+                      <input
+                        type="number"
+                        value={fxSsX}
+                        onChange={e => setFxSsX(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Y</label>
+                      <input
+                        type="number"
+                        value={fxSsY}
+                        onChange={e => setFxSsY(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Rozmiar</label>
+                      <input
+                        type="number"
+                        min={0} max={10000}
+                        value={fxSsSize}
+                        onChange={e => setFxSsSize(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-slate-600">X/Y: pozycja (-4800 do 4800), Rozmiar: skala (1000 = 100%)</span>
+                </>
+              )}
             </>
           )}
 

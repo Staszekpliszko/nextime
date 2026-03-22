@@ -50,6 +50,11 @@ interface AtemInstance {
   changePreviewInput(input: number, me?: number): Promise<void>;
   cut(me?: number): Promise<void>;
   autoTransition(me?: number): Promise<void>;
+  // Faza 30: macro, DSK, USK, SuperSource
+  macroRun(macroIndex: number): Promise<void>;
+  setDownstreamKeyOnAir(onAir: boolean, keyIndex: number): Promise<void>;
+  setUpstreamKeyerOnAir(onAir: boolean, meIndex: number, keyIndex: number): Promise<void>;
+  setSuperSourceBoxSettings(settings: Partial<SuperSourceBoxConfig>, boxIndex: number): Promise<void>;
   on(event: string, handler: (...args: unknown[]) => void): void;
   removeAllListeners(): void;
   state?: {
@@ -65,6 +70,15 @@ interface AtemInstance {
       }>;
     };
   };
+}
+
+/** Konfiguracja SuperSource box (Faza 30) */
+export interface SuperSourceBoxConfig {
+  source: number;
+  x: number;
+  y: number;
+  size: number;
+  enabled: boolean;
 }
 
 /** Próbuje załadować atem-connection. Zwraca null jeśli niedostępny. */
@@ -123,7 +137,7 @@ export class AtemSender extends EventEmitter {
   private _destroying = false;
 
   /** Callback do przechwytywania komend (testy + integracja) */
-  onCommand: ((cmd: { type: string; input?: number; me?: number; duration?: number }) => void) | null = null;
+  onCommand: ((cmd: { type: string; input?: number; me?: number; duration?: number; macroIndex?: number; keyIndex?: number; onAir?: boolean; boxIndex?: number; config?: Partial<SuperSourceBoxConfig> }) => void) | null = null;
 
   /**
    * @param config Konfiguracja
@@ -384,6 +398,68 @@ export class AtemSender extends EventEmitter {
     }
 
     console.log(`[AtemSender] PREVIEW → Input ${input} (ME${this.config.meIndex})`);
+  }
+
+  // ── Faza 30: Macro, DSK, USK, SuperSource ────────────
+
+  /** Uruchamia makro ATEM o podanym indeksie */
+  runMacro(macroIndex: number): void {
+    if (!this._connected) return;
+
+    const cmd = { type: 'macro' as const, macroIndex };
+    if (this.onCommand) this.onCommand(cmd);
+
+    if (this._atem && this._useRealAtem) {
+      this._atem.macroRun(macroIndex)
+        .catch(err => console.error('[AtemSender] Błąd MACRO RUN:', err));
+    }
+
+    console.log(`[AtemSender] MACRO RUN → index ${macroIndex}`);
+  }
+
+  /** Włącza/wyłącza Downstream Key (DSK) */
+  setDownstreamKey(keyIndex: number, onAir: boolean): void {
+    if (!this._connected) return;
+
+    const cmd = { type: 'dsk' as const, keyIndex, onAir };
+    if (this.onCommand) this.onCommand(cmd);
+
+    if (this._atem && this._useRealAtem) {
+      this._atem.setDownstreamKeyOnAir(onAir, keyIndex)
+        .catch(err => console.error('[AtemSender] Błąd DSK:', err));
+    }
+
+    console.log(`[AtemSender] DSK ${keyIndex} → ${onAir ? 'ON' : 'OFF'}`);
+  }
+
+  /** Włącza/wyłącza Upstream Key (USK) na danym ME */
+  setUpstreamKey(meIndex: number, keyIndex: number, onAir: boolean): void {
+    if (!this._connected) return;
+
+    const cmd = { type: 'usk' as const, me: meIndex, keyIndex, onAir };
+    if (this.onCommand) this.onCommand(cmd);
+
+    if (this._atem && this._useRealAtem) {
+      this._atem.setUpstreamKeyerOnAir(onAir, meIndex, keyIndex)
+        .catch(err => console.error('[AtemSender] Błąd USK:', err));
+    }
+
+    console.log(`[AtemSender] USK ME${meIndex} Key${keyIndex} → ${onAir ? 'ON' : 'OFF'}`);
+  }
+
+  /** Konfiguruje SuperSource box */
+  setSuperSourceBox(boxIndex: number, config: Partial<SuperSourceBoxConfig>): void {
+    if (!this._connected) return;
+
+    const cmd = { type: 'supersource' as const, boxIndex, config };
+    if (this.onCommand) this.onCommand(cmd);
+
+    if (this._atem && this._useRealAtem) {
+      this._atem.setSuperSourceBoxSettings(config, boxIndex)
+        .catch(err => console.error('[AtemSender] Błąd SuperSource:', err));
+    }
+
+    console.log(`[AtemSender] SuperSource Box${boxIndex} → ${JSON.stringify(config)}`);
   }
 
   /** Zwraca aktualny status ATEM */

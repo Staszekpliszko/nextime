@@ -11,6 +11,9 @@ import { AtemPanel } from '@/components/AtemPanel/AtemPanel';
 import { OutputPanel } from '@/components/OutputPanel/OutputPanel';
 import { CameraPresetPanel } from '@/components/CameraPresetPanel/CameraPresetPanel';
 import { MediaLibraryPanel } from '@/components/MediaLibraryPanel/MediaLibraryPanel';
+import { MediaPlayer } from '@/components/MediaPlayer/MediaPlayer';
+import type { MediaPlayerState } from '@/components/MediaPlayer/MediaPlayer';
+import { MediaStatusBar } from '@/components/MediaPlayer/MediaStatusBar';
 import { useRundownSocket } from '@/hooks/useRundownSocket';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePlaybackStore } from '@/store/playback.store';
@@ -81,6 +84,20 @@ export default function App() {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const atemConnected = usePlaybackStore(s => s.atemConnected);
+
+  // Faza 24: stan media playback
+  const [mediaState, setMediaState] = useState<MediaPlayerState>({
+    isPlaying: false, fileName: '', currentTimeSec: 0, durationSec: 0, volume: 100,
+  });
+
+  // Faza 24: callbacki media z UI
+  const handleMediaSeek = useCallback((timeSec: number) => {
+    window.nextime.mediaSeek(timeSec);
+  }, []);
+
+  const handleMediaStop = useCallback(() => {
+    window.nextime.mediaStop();
+  }, []);
 
   // Timeline CRUD dialog/context menu
   const [cueDialog, setCueDialog] = useState<CueDialogState | null>(null);
@@ -786,6 +803,16 @@ export default function App() {
       {showSettingsPanel && (
         <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
       )}
+
+      {/* Faza 24: Media Status Bar — widoczny gdy media jest odtwarzane */}
+      <MediaStatusBar
+        state={mediaState}
+        onSeek={handleMediaSeek}
+        onStop={handleMediaStop}
+      />
+
+      {/* Faza 24: Ukryty MediaPlayer — obsługuje odtwarzanie audio/video */}
+      <MediaPlayer onStateChange={setMediaState} />
 
       {/* Faza 11: Toast notifications */}
       <ToastContainer />

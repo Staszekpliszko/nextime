@@ -198,6 +198,42 @@ contextBridge.exposeInMainWorld('nextime', {
   getMediaStatus: (): Promise<unknown> =>
     ipcRenderer.invoke('nextime:getMediaStatus'),
 
+  // ── Media Playback IPC (Faza 24) ─────────────────────────────
+  /** Nasłuchuje na komendy media z main process */
+  onMediaCommand: (callback: (cmd: unknown) => void): void => {
+    ipcRenderer.on('media:command', (_event, cmd) => callback(cmd));
+  },
+
+  /** Odsyła feedback stanu media do main process */
+  sendMediaFeedback: (feedback: unknown): void => {
+    ipcRenderer.send('media:feedback', feedback);
+  },
+
+  /** Usuwa listener komend media (cleanup) */
+  removeMediaCommandListener: (): void => {
+    ipcRenderer.removeAllListeners('media:command');
+  },
+
+  /** Zatrzymuje odtwarzanie media (z UI) */
+  mediaStop: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:mediaStop'),
+
+  /** Seek do pozycji w sekundach (z UI) */
+  mediaSeek: (timeSec: number): Promise<void> =>
+    ipcRenderer.invoke('nextime:mediaSeek', timeSec),
+
+  /** Pauzuje media (z UI) */
+  mediaPause: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:mediaPause'),
+
+  /** Wznawia media po pauzie (z UI) */
+  mediaResume: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:mediaResume'),
+
+  /** Ustawia głośność media (0-100, z UI) */
+  mediaSetVolume: (volume: number): Promise<void> =>
+    ipcRenderer.invoke('nextime:mediaSetVolume', volume),
+
   /** Analizuje plik media za pomocą ffprobe (Faza 23) */
   probeMediaFile: (filePath: string): Promise<unknown> =>
     ipcRenderer.invoke('nextime:probeMediaFile', filePath),

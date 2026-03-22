@@ -14,7 +14,7 @@ import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
-import { probeMediaFile, generateWaveform } from './media';
+import { probeMediaFile, generateWaveform, MediaIpcBridge } from './media';
 import {
   UndoManager,
   createCueCommand, deleteCueCommand, updateCueCommand, reorderCuesCommand,
@@ -48,6 +48,7 @@ let httpServer: Server | null = null;
 let senderManager: SenderManager | null = null;
 let settingsManager: SettingsManager | null = null;
 let windowManager: WindowManager | null = null;
+let mediaIpcBridge: MediaIpcBridge | null = null;
 let wsPort = 3141;
 
 // Repozytoria — inicjalizowane po otwarciu bazy
@@ -175,6 +176,11 @@ async function initServices(): Promise<void> {
   // 6. Sender Manager (OSC, MIDI, GPI, Media, ATEM)
   senderManager = new SenderManager();
   senderManager.attach(engine);
+
+  // 6a. Media IPC Bridge — most main↔renderer dla media playback (Faza 24)
+  mediaIpcBridge = new MediaIpcBridge();
+  mediaIpcBridge.registerIpcHandlers(ipcMain);
+  senderManager.media.setIpcBridge(mediaIpcBridge);
 
   // 6b. Zastosuj ustawienia z DB do senderów
   settingsManager!.applyToSenders(senderManager);
@@ -699,6 +705,33 @@ function registerIpcHandlers(): void {
     return senderManager.media.getStatus();
   });
 
+  // ── Media Playback Control (Faza 24) ─────────────────────────────
+
+  ipcMain.handle('nextime:mediaStop', () => {
+    if (!senderManager) return;
+    senderManager.media.stop();
+  });
+
+  ipcMain.handle('nextime:mediaSeek', (_event, timeSec: number) => {
+    if (!senderManager) return;
+    senderManager.media.seek(timeSec);
+  });
+
+  ipcMain.handle('nextime:mediaPause', () => {
+    if (!senderManager) return;
+    senderManager.media.pause();
+  });
+
+  ipcMain.handle('nextime:mediaResume', () => {
+    if (!senderManager) return;
+    senderManager.media.resume();
+  });
+
+  ipcMain.handle('nextime:mediaSetVolume', (_event, volume: number) => {
+    if (!senderManager) return;
+    senderManager.media.setVolume(volume);
+  });
+
   // ── Media Infrastructure (Faza 23) ─────────────────────────────
 
   ipcMain.handle('nextime:probeMediaFile', async (_event, filePath: string) => {
@@ -1199,6 +1232,11 @@ function createWindow(): void {
       sandbox: false,
     },
   });
+
+  // Faza 24: podłącz mainWindow do MediaIpcBridge
+  if (mediaIpcBridge) {
+    mediaIpcBridge.setMainWindow(mainWindow);
+  }
 
   // Dev: Vite dev server | Prod: plik HTML z dist
   if (process.env.VITE_DEV_SERVER_URL) {

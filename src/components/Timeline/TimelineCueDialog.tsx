@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePlaybackStore } from '@/store/playback.store';
 import type { TimelineCueSummary } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
 import { framesToTimecode, timecodeToFrames } from '@/utils/timecode';
+import type { MediaFile } from '../../../electron/db/repositories/media-file.repo';
 
 /** Mapowanie typ tracka → typ cue */
 const TRACK_TO_CUE_TYPE: Record<string, string> = {
@@ -104,8 +106,37 @@ export function TimelineCueDialog({
   const [mediaVolume, setMediaVolume] = useState<number>((existingData.volume as number) ?? 100);
   const [mediaLoop, setMediaLoop] = useState<boolean>((existingData.loop as boolean) ?? false);
   const [mediaOffsetFrames, setMediaOffsetFrames] = useState<number>((existingData.offset_frames as number) ?? 0);
+  const [mediaLibraryFiles, setMediaLibraryFiles] = useState<MediaFile[]>([]);
 
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Faza 24: załaduj pliki z biblioteki mediów (dla dropdown w sekcji media)
+  useEffect(() => {
+    if (cueType !== 'media') return;
+    const actId = usePlaybackStore.getState().activeActId;
+    if (!actId) return;
+    window.nextime.getMediaFiles(actId).then(files => {
+      setMediaLibraryFiles(files);
+    }).catch(() => {
+      // ignoruj — dropdown będzie pusty
+    });
+  }, [cueType]);
+
+  // Faza 24: wybierz plik z biblioteki mediów (dropdown)
+  const handleMediaLibrarySelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const filePath = e.target.value;
+    if (filePath) {
+      setMediaFilePath(filePath);
+    }
+  }, []);
+
+  // Faza 24: otwórz natywny dialog Electron do wyboru pliku
+  const handleBrowseMediaFile = useCallback(async () => {
+    const result = await window.nextime.selectMediaFile();
+    if (result) {
+      setMediaFilePath(result.filePath);
+    }
+  }, []);
 
   // Zamknij na Escape
   useEffect(() => {
@@ -438,14 +469,46 @@ export function TimelineCueDialog({
 
           {cueType === 'media' && (
             <>
+              {/* Wybór pliku z biblioteki mediów */}
               <div>
-                <label className="text-[10px] text-slate-500 block mb-0.5">Ścieżka pliku</label>
-                <input
+                <label className="text-[10px] text-slate-500 block mb-0.5">Plik z biblioteki mediów</label>
+                <select
                   value={mediaFilePath}
-                  onChange={e => setMediaFilePath(e.target.value)}
+                  onChange={handleMediaLibrarySelect}
                   className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
-                  placeholder="/path/to/file.wav"
-                />
+                >
+                  <option value="">— wybierz plik —</option>
+                  {mediaLibraryFiles.map(f => (
+                    <option key={f.id} value={f.file_path}>
+                      {f.file_name} ({f.media_type})
+                    </option>
+                  ))}
+                </select>
+                {mediaLibraryFiles.length === 0 && (
+                  <span className="text-[9px] text-slate-600">
+                    Brak plików — dodaj przez przycisk &quot;Multimedia&quot; na pasku
+                  </span>
+                )}
+              </div>
+
+              {/* Lub wybierz plik z dysku */}
+              <div>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Lub wybierz z dysku</label>
+                <div className="flex gap-2">
+                  <input
+                    value={mediaFilePath}
+                    readOnly
+                    className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-400 focus:outline-none cursor-default"
+                    placeholder="Wybierz plik..."
+                  />
+                  <button
+                    type="button"
+                    onClick={handleBrowseMediaFile}
+                    className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 rounded border border-slate-600 shrink-0"
+                  >
+                    Przeglądaj...
+                  </button>
+                </div>
               </div>
               <div className="flex gap-3 items-end">
                 <div className="flex-1">

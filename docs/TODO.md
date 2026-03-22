@@ -1409,13 +1409,24 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 24 — Prawdziwy Media Playback (audio/video) [PLANOWANA]
+## Faza 24 — Prawdziwy Media Playback (audio/video) [UKOŃCZONA]
 
-- [ ] `src/components/MediaPlayer/MediaPlayer.tsx` — ukryty `<audio>`/`<video>`, IPC play/stop/volume/seek
-- [ ] `src/components/MediaPlayer/MediaStatusBar.tsx` — progress bar w TransportBar
-- [ ] `electron/media/media-ipc.ts` — IPC handlery media
-- [ ] PRZEBUDOWA `electron/senders/media-sender.ts` — IPC zamiast console.log
-- [ ] Testy: ~25
+- [x] `electron/media/media-ipc.ts` — MediaIpcBridge: typy MediaCommand/MediaFeedback, sendCommand, handleFeedback, registerIpcHandlers
+- [x] `electron/media/index.ts` — re-eksport MediaIpcBridge i typów
+- [x] PRZEBUDOWA `electron/senders/media-sender.ts` — setIpcBridge(), IPC play/stop/pause/resume/volume/seek zamiast console.log, updateFromFeedback(), rozszerzony MediaPlaybackStatus
+- [x] `electron/preload.ts` — onMediaCommand, sendMediaFeedback, removeMediaCommandListener, mediaStop, mediaSeek, mediaPause, mediaResume, mediaSetVolume
+- [x] `src/types/electron.d.ts` — MediaCommand, MediaFeedback, MediaPlaybackStatus, nowe metody API
+- [x] `src/components/MediaPlayer/MediaPlayer.tsx` — ukryty `<audio>`/`<video>`, nasłuchuje IPC, file:// protocol, feedback co 250ms
+- [x] `src/components/MediaPlayer/MediaStatusBar.tsx` — pasek z nazwą pliku, progress bar (kliknięcie=seek), elapsed/remaining, przycisk stop
+- [x] `electron/main.ts` — MediaIpcBridge tworzony w initServices, setMainWindow po createWindow, IPC handlery mediaStop/Seek/Pause/Resume/SetVolume
+- [x] `src/App.tsx` — zamontowane MediaPlayer + MediaStatusBar, stan media lifted
+- [x] Testy: 39 nowych (3 pliki: media-ipc-bridge.test.ts, media-sender-ipc.test.ts, media-player.test.ts, media-status-bar.test.ts)
+
+- [x] `src/components/Timeline/TimelineCueDialog.tsx` — dropdown z biblioteki mediów + przycisk "Przeglądaj..." zamiast ręcznego wklejania ścieżki
+- [x] `src/components/Timeline/Timeline.tsx` — fix: handleCueDrag aktualizuje store (drag cue'ów na timeline działał w bazie ale nie w UI)
+- [x] `src/components/MediaPlayer/MediaStatusBar.tsx` — fix: useCallback przed early return (React hooks order rule)
+
+**Statystyki Fazy 24:** 39 nowych testów, 784 łącznie, 6 nowych plików, 8 modyfikacji
 
 ---
 

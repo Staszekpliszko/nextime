@@ -137,8 +137,14 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
     return cue.type;
   }, []);
 
-  // Drag cue — aktualizacja pozycji
+  // Drag cue — aktualizacja pozycji (Faza 24: fix — aktualizuj store żeby blok się przesunął w UI)
   const handleCueDrag = useCallback((cueId: string, newTcIn: number, newTcOut: number | undefined) => {
+    // Aktualizuj store (UI) natychmiast — żeby blok się przesunął wizualnie
+    usePlaybackStore.getState().updateTimelineCue(cueId, {
+      tc_in_frames: newTcIn,
+      tc_out_frames: newTcOut,
+    });
+    // Zapisz w bazie przez IPC
     window.nextime.updateTimelineCue(cueId, {
       tc_in_frames: newTcIn,
       tc_out_frames: newTcOut,

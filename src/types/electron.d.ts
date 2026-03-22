@@ -14,6 +14,8 @@ import type { LtcReaderStatus } from '../../electron/senders/ltc-reader';
 import type { CameraPreset, CreateCameraPresetInput, UpdateCameraPresetInput } from '../../electron/db/repositories/camera-preset.repo';
 import type { MediaFile, CreateMediaFileInput } from '../../electron/db/repositories/media-file.repo';
 import type { MediaProbeResult } from '../../electron/media/ffprobe-utils';
+import type { MediaCommand, MediaFeedback } from '../../electron/media/media-ipc';
+import type { MediaPlaybackStatus } from '../../electron/senders/media-sender';
 import type { OutputConfig, CreateOutputConfigInput, UpdateOutputConfigInput } from '../../electron/db/repositories/output-config.repo';
 import type { Column, CreateColumnInput, UpdateColumnInput, ColumnVisibility } from '../../electron/db/repositories/column.repo';
 import type { Cell } from '../../electron/db/repositories/cell.repo';
@@ -110,13 +112,31 @@ export interface NextimeApi {
   getMediaFiles(actId: string): Promise<MediaFile[]>;
   createMediaFile(input: CreateMediaFileInput): Promise<MediaFile>;
   deleteMediaFile(id: string): Promise<boolean>;
-  getMediaStatus(): Promise<{ playing: boolean; currentFile: string | null; volume: number }>;
+  getMediaStatus(): Promise<MediaPlaybackStatus>;
 
   // ── Media Infrastructure (Faza 23) ───────────────────
   probeMediaFile(filePath: string): Promise<MediaProbeResult | null>;
   selectMediaFile(): Promise<{ filePath: string; fileName: string } | null>;
   generateWaveform(filePath: string, samples?: number): Promise<number[]>;
   updateMediaFileDuration(id: string, durationFrames: number, waveformData?: number[]): Promise<MediaFile | undefined>;
+
+  // ── Media Playback (Faza 24) ──────────────────────────────
+  /** Nasłuchuje na komendy media z main process */
+  onMediaCommand(callback: (cmd: MediaCommand) => void): void;
+  /** Odsyła feedback stanu media do main process */
+  sendMediaFeedback(feedback: MediaFeedback): void;
+  /** Usuwa listener komend media (cleanup) */
+  removeMediaCommandListener(): void;
+  /** Zatrzymuje odtwarzanie media (z UI) */
+  mediaStop(): Promise<void>;
+  /** Seek do pozycji w sekundach (z UI) */
+  mediaSeek(timeSec: number): Promise<void>;
+  /** Pauzuje media (z UI) */
+  mediaPause(): Promise<void>;
+  /** Wznawia media po pauzie (z UI) */
+  mediaResume(): Promise<void>;
+  /** Ustawia głośność media (0-100, z UI) */
+  mediaSetVolume(volume: number): Promise<void>;
 
   // ── LTC (Faza 10) ──────────────────────────────────────
   getLtcStatus(): Promise<LtcReaderStatus>;

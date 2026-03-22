@@ -10,6 +10,7 @@ import { SenderManager } from './senders';
 import { SettingsManager } from './settings-manager';
 import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
 import { registerWindowIpcHandlers } from './ipc/window-ipc';
+import { registerObsIpcHandlers } from './ipc/obs-ipc';
 import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
@@ -217,6 +218,11 @@ function registerIpcHandlers(): void {
   // Faza 18: Settings IPC (zarejestrowane w osobnym pliku)
   if (settingsManager && senderManager) {
     registerSettingsIpcHandlers(settingsManager, senderManager);
+  }
+
+  // Faza 25: OBS IPC
+  if (senderManager) {
+    registerObsIpcHandlers(senderManager);
   }
 
   // Faza 19: Window IPC (zarządzanie oknami prompter/output)

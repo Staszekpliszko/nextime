@@ -17,10 +17,12 @@ import { MtcParser } from './mtc-parser';
 import type { MtcTimecode } from './mtc-parser';
 import { PtzSender } from './ptz-sender';
 import type { PtzSenderConfig } from './ptz-sender';
+import { ObsSender } from './obs-sender';
+import type { ObsSenderConfig, ObsStatus } from './obs-sender';
 
 // Re-eksport wszystkich senderów
-export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, validateOscAddress };
-export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig };
+export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, ObsSender, validateOscAddress };
+export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig, ObsSenderConfig, ObsStatus };
 
 // ── SenderManager ───────────────────────────────────────
 
@@ -32,6 +34,7 @@ export interface SenderManagerConfig {
   atem?: Partial<AtemSenderConfig>;
   ltc?: Partial<LtcReaderConfig>;
   ptz?: Partial<PtzSenderConfig>;
+  obs?: Partial<ObsSenderConfig>;
 }
 
 /**
@@ -46,6 +49,7 @@ export class SenderManager {
   readonly atem: AtemSender;
   readonly ltc: LtcReader;
   readonly ptz: PtzSender;
+  readonly obs: ObsSender;
 
   constructor(config: SenderManagerConfig = {}) {
     this.osc = new OscSender(config.osc);
@@ -55,6 +59,7 @@ export class SenderManager {
     this.atem = new AtemSender(config.atem);
     this.ltc = new LtcReader(config.ltc);
     this.ptz = new PtzSender(config.ptz);
+    this.obs = new ObsSender(config.obs);
   }
 
   /** Podpina wszystkie sendery do engine */
@@ -66,6 +71,7 @@ export class SenderManager {
     this.atem.attach(engine);
     this.ltc.attach(engine);
     this.ptz.attach(engine);
+    this.obs.attach(engine);
     console.log('[SenderManager] Wszystkie sendery podpięte do engine');
   }
 
@@ -78,6 +84,7 @@ export class SenderManager {
     this.atem.destroy();
     this.ltc.destroy();
     this.ptz.destroy();
+    this.obs.destroy();
     console.log('[SenderManager] Wszystkie sendery zniszczone');
   }
 }

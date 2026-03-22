@@ -1430,13 +1430,20 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 25 — OBS WebSocket Driver [PLANOWANA]
+## Faza 25 — OBS WebSocket Driver [UKOŃCZONA]
 
-- [ ] `electron/senders/obs-sender.ts` — ObsSender: connect, setScene, setPreviewScene, triggerTransition, getSceneList, getStatus
-- [ ] Mapping camera_number → scena OBS (sceneMap)
-- [ ] Auto-reconnect, graceful fallback
-- [ ] Settings: sekcja obs w SettingsManager
-- [ ] Testy: ~20
+- [x] `electron/senders/obs-sender.ts` — ObsSender: connect, disconnect, setScene, setPreviewScene, triggerTransition, getSceneList, getCurrentScene, getStatus, refreshScenes, auto-reconnect, graceful fallback (obs-websocket-js ESM dynamic import)
+- [x] Mapping camera_number → scena OBS (sceneMap w config)
+- [x] Auto-reconnect co 5s, graceful fallback na placeholder gdy brak obs-websocket-js
+- [x] `electron/senders/index.ts` — ObsSender dodany do SenderManager (attach, destroy)
+- [x] `electron/settings-manager.ts` — sekcja obs: ObsSettings (ip, port, password, enabled, autoSwitch, sceneMap), defaults, propagacja do sendera
+- [x] `electron/ipc/obs-ipc.ts` — IPC handlery: obsConnect, obsDisconnect, obsGetStatus, obsGetScenes, obsRefreshScenes, obsSetScene, obsSetPreview, obsTriggerTransition
+- [x] `electron/preload.ts` — metody obs* w contextBridge
+- [x] `src/types/electron.d.ts` — typy OBS w NextimeApi
+- [x] `electron/main.ts` — rejestracja registerObsIpcHandlers
+- [x] `src/components/SettingsPanel/ObsSettingsTab.tsx` — zakładka OBS: IP, port, hasło, toggle aktywny/auto-switch, połącz/rozłącz ze statusem, lista scen live, scene map (camera→scena), odśwież sceny
+- [x] `src/components/SettingsPanel/SettingsPanel.tsx` — zakładka OBS dodana
+- [x] Testy: 31 nowych (obs-sender.test.ts: 22, obs-integration.test.ts: 9), łącznie 815
 
 ---
 

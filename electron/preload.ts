@@ -467,6 +467,39 @@ contextBridge.exposeInMainWorld('nextime', {
   gpiIsAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('nextime:gpiIsAvailable'),
 
+  // ── OBS (Faza 25) ───────────────────────────────────────────
+  /** Łączy z OBS WebSocket */
+  obsConnect: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:obsConnect'),
+
+  /** Rozłącza OBS */
+  obsDisconnect: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:obsDisconnect'),
+
+  /** Pobiera status OBS */
+  obsGetStatus: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:obsGetStatus'),
+
+  /** Pobiera listę scen OBS (z cache) */
+  obsGetScenes: (): Promise<string[]> =>
+    ipcRenderer.invoke('nextime:obsGetScenes'),
+
+  /** Odświeża i pobiera listę scen OBS (live) */
+  obsRefreshScenes: (): Promise<string[]> =>
+    ipcRenderer.invoke('nextime:obsRefreshScenes'),
+
+  /** Przełącza scenę na Program */
+  obsSetScene: (sceneName: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:obsSetScene', sceneName),
+
+  /** Przełącza scenę na Preview */
+  obsSetPreview: (sceneName: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:obsSetPreview', sceneName),
+
+  /** Wykonuje przejście Studio Mode */
+  obsTriggerTransition: (transitionName?: string, durationMs?: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:obsTriggerTransition', transitionName, durationMs),
+
   // ── Settings (Faza 18) ──────────────────────────────────────
   /** Pobiera wszystkie ustawienia */
   getSettings: (): Promise<unknown> =>

@@ -6,6 +6,7 @@ import type { Act, CreateActInput, UpdateActInput } from '../../electron/db/repo
 import type { Track, CreateTrackInput, UpdateTrackInput } from '../../electron/db/repositories/track.repo';
 import type { TimelineCue, CreateTimelineCueInput, UpdateTimelineCueInput } from '../../electron/db/repositories/timeline-cue.repo';
 import type { AtemStatus } from '../../electron/senders/atem-sender';
+import type { ObsStatus } from '../../electron/senders/obs-sender';
 import type { AllSettings, SettingsSection } from '../../electron/settings-manager';
 import type { DisplayInfo, OpenWindowInfo } from '../../electron/window-manager';
 import type { TextVariable, CreateTextVariableInput, UpdateTextVariableInput } from '../../electron/db/repositories/text-variable.repo';
@@ -165,6 +166,16 @@ export interface NextimeApi {
   undo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;
   redo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;
   getUndoState(): Promise<{ canUndo: boolean; canRedo: boolean; undoDescription: string; redoDescription: string }>;
+
+  // ── OBS (Faza 25) ──────────────────────────────────────────
+  obsConnect(): Promise<{ ok: boolean; error?: string }>;
+  obsDisconnect(): Promise<void>;
+  obsGetStatus(): Promise<ObsStatus>;
+  obsGetScenes(): Promise<string[]>;
+  obsRefreshScenes(): Promise<string[]>;
+  obsSetScene(sceneName: string): Promise<{ ok: boolean; error?: string }>;
+  obsSetPreview(sceneName: string): Promise<{ ok: boolean; error?: string }>;
+  obsTriggerTransition(transitionName?: string, durationMs?: number): Promise<{ ok: boolean; error?: string }>;
 
   // ── ATEM ────────────────────────────────────────────────
   atemGetStatus(): Promise<AtemStatus>;

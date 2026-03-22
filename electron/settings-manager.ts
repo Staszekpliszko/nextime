@@ -53,6 +53,15 @@ export interface PtzSettings {
   }>;
 }
 
+export interface ObsSettings {
+  ip: string;
+  port: number;
+  password: string;
+  enabled: boolean;
+  autoSwitch: boolean;
+  sceneMap: Record<number, string>;
+}
+
 export interface AllSettings {
   osc: OscSettings;
   midi: MidiSettings;
@@ -60,6 +69,7 @@ export interface AllSettings {
   ltc: LtcSettings;
   gpi: GpiSettings;
   ptz: PtzSettings;
+  obs: ObsSettings;
 }
 
 // ── Domyślne wartości ───────────────────────────────────
@@ -71,6 +81,7 @@ const DEFAULTS: AllSettings = {
   ltc: { source: 'internal', enabled: true, mtcPortIndex: -1 },
   gpi: { enabled: false, defaultPulseMs: 100, portPath: '', baudRate: 9600 },
   ptz: { enabled: false, cameras: [] },
+  obs: { ip: '127.0.0.1', port: 4455, password: '', enabled: false, autoSwitch: true, sceneMap: {} },
 };
 
 // ── Typ sekcji ──────────────────────────────────────────
@@ -214,6 +225,17 @@ export class SettingsManager {
       cameras: ptz.cameras,
     });
 
+    // OBS
+    const obs = this.cache.obs;
+    senderManager.obs.updateConfig({
+      ip: obs.ip,
+      port: obs.port,
+      password: obs.password,
+      enabled: obs.enabled,
+      autoSwitch: obs.autoSwitch,
+      sceneMap: obs.sceneMap,
+    });
+
     console.log('[SettingsManager] Ustawienia zastosowane do senderów');
   }
 
@@ -249,6 +271,16 @@ export class SettingsManager {
         senderManager.ptz.updateConfig({
           enabled: this.cache.ptz.enabled,
           cameras: this.cache.ptz.cameras,
+        });
+        break;
+      case 'obs':
+        senderManager.obs.updateConfig({
+          ip: this.cache.obs.ip,
+          port: this.cache.obs.port,
+          password: this.cache.obs.password,
+          enabled: this.cache.obs.enabled,
+          autoSwitch: this.cache.obs.autoSwitch,
+          sceneMap: this.cache.obs.sceneMap,
         });
         break;
     }

@@ -149,12 +149,15 @@ export class AtemSender extends EventEmitter {
     }
   }
 
-  /** Podpina się do engine — nasłuchuje na 'vision-cue-changed' (engine emituje 2 argumenty: active, next) */
-  attach(engine: EventEmitter): void {
-    engine.on('vision-cue-changed', (activeCue: { data: Record<string, unknown> } | null, _nextCue: unknown) => {
-      this.handleVisionCueChanged(activeCue);
-    });
-    console.log('[AtemSender] Podpięty do engine (vision-cue-changed)');
+  /**
+   * Podpina się do engine.
+   * UWAGA: Od Fazy 27 vision-cue-changed jest obsługiwane przez VisionRouter,
+   * nie bezpośrednio przez AtemSender. Ta metoda jest zachowana dla kompatybilności
+   * z SenderManager.attach() — nie dodaje już listenera vision-cue-changed.
+   */
+  attach(_engine: EventEmitter): void {
+    // Vision routing przeniesiony do VisionRouter (Faza 27)
+    console.log('[AtemSender] Podpięty do engine (vision routing przez VisionRouter)');
   }
 
   /** Łączy się z ATEM */

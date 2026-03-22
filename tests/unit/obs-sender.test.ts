@@ -202,16 +202,10 @@ describe('ObsSender', () => {
 
   // ── attach ────────────────────────────────────────────
 
-  it('powinno reagować na engine vision-cue-changed', async () => {
+  it('attach nie dodaje bezpośredniego listenera vision-cue-changed (routing przez VisionRouter)', () => {
     sender.attach(engine);
-    await sender.connect();
-    const cmdSpy = vi.fn();
-    sender.onCommand = cmdSpy;
-
-    engine.emit('vision-cue-changed', { data: { camera_number: 3 } }, null);
-    await new Promise(r => setTimeout(r, 50));
-
-    expect(cmdSpy).toHaveBeenCalledWith({ type: 'setScene', scene: 'Grafika' });
+    // Od Fazy 27 ObsSender nie nasłuchuje bezpośrednio — VisionRouter to robi
+    expect(engine.listenerCount('vision-cue-changed')).toBe(0);
   });
 
   // ── updateConfig ──────────────────────────────────────

@@ -140,19 +140,12 @@ describe('AtemSender', () => {
     expect(commands[0]).toEqual({ type: 'mix', input: 5, me: 0, duration: 12 });
   });
 
-  it('powinno reagować na vision-cue-changed z engine (attach)', () => {
-    const commands: Array<{ type: string; input?: number }> = [];
-    sender.onCommand = (cmd) => commands.push(cmd);
+  it('attach nie dodaje bezpośredniego listenera vision-cue-changed (routing przez VisionRouter)', () => {
     sender.attach(engine);
     sender.connect();
 
-    engine.emit('vision-cue-changed', {
-      id: 'vc-1',
-      data: { camera_number: 4, shot_name: 'WS' },
-    }, null);
-
-    expect(commands).toHaveLength(1);
-    expect(commands[0]!.input).toBe(4);
+    // Od Fazy 27 AtemSender nie nasłuchuje bezpośrednio — VisionRouter to robi
+    expect(engine.listenerCount('vision-cue-changed')).toBe(0);
   });
 
   // ── Guards when disconnected ──────────────────────────────

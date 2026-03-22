@@ -1471,13 +1471,24 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 27 — Vision Cue Routing + Transition Types [PLANOWANA]
+## Faza 27 — Vision Cue Routing + Transition Types [UKOŃCZONA]
 
-- [ ] `electron/senders/vision-router.ts` — VisionRouter: targetSwitcher, centralny routing, transition_type + transition_duration_ms
-- [ ] Vision cue data rozszerzone o transition_type (Cut/Fade/Wipe/Zoom/Stinger...) i transition_duration_ms
-- [ ] Dropdown transition w TimelineCueDialog
-- [ ] Mapowanie transition na API ATEM/OBS/vMix, fallback → CUT
-- [ ] Testy: ~15
+- [x] `electron/senders/vision-router.ts` — VisionRouter: targetSwitcher ('atem'|'obs'|'vmix'|'none'), centralny routing vision cue → aktywny switcher
+  - Odczytuje transition_type i transition_duration_ms z danych vision cue
+  - Fallback na domyślny transition sendera gdy cue nie ma transition_type
+  - Mapowanie typów przejścia na API każdego switchera (ATEM: Cut/Mix, OBS: Cut/Fade/Luma_Wipe/Stinger, vMix: Cut/Fade/Merge/Wipe/Zoom/Stinger1/Stinger2)
+- [x] Vision cue data rozszerzone o transition_type (Cut/Fade/Merge/Wipe/Zoom/Stinger1/Stinger2) i transition_duration_ms
+- [x] Dropdown "Typ przejścia" + input "Czas (ms)" w TimelineCueDialog (sekcja vision)
+- [x] AtemSender, ObsSender, VmixSender — usunięty bezpośredni nasłuch vision-cue-changed (routing przez VisionRouter)
+- [x] SenderManager — tworzy VisionRouter, przekazuje referencje do senderów, attach/destroy
+- [x] SettingsManager — nowa sekcja `vision: { targetSwitcher }`, propagacja do VisionRouter
+- [x] settings-ipc.ts — 'vision' dodane do validSections
+- [x] SettingsPanel zakładka "Ogólne" — dropdown "Aktywny switcher wizji" (ATEM/OBS/vMix/Brak)
+- [x] Auto-detect targetSwitcher: jeśli 'none' ale switcher enabled+autoSwitch → automatycznie go wybiera (wsteczna kompatybilność)
+- [x] Testy: 14 nowych (vision-router.test.ts) + 3 zaktualizowane testy senderów
+
+**Statystyki Fazy 27:** 14 nowych testów, ~350 linii nowego kodu
+**ŁĄCZNIE:** 853 testy
 
 ---
 

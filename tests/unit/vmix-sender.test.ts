@@ -165,10 +165,11 @@ describe('VmixSender', () => {
     expect(events).toContain('disconnected');
   });
 
-  it('attach podpina się do engine events', () => {
+  it('attach nie dodaje bezpośredniego listenera vision-cue-changed (routing przez VisionRouter)', () => {
     const engine = new EventEmitter();
     sender.attach(engine);
-    expect(engine.listenerCount('vision-cue-changed')).toBe(1);
+    // Od Fazy 27 VmixSender nie nasłuchuje bezpośrednio — VisionRouter to robi
+    expect(engine.listenerCount('vision-cue-changed')).toBe(0);
   });
 
   it('handleVisionCueChanged ignoruje gdy disabled', () => {

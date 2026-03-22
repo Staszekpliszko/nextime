@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings, VmixSettings } from '../../../electron/settings-manager';
+import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings, VmixSettings, VisionSettings } from '../../../electron/settings-manager';
 import { ObsSettingsTab } from './ObsSettingsTab';
 import { VmixSettingsTab } from './VmixSettingsTab';
 
@@ -103,7 +103,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Zawartość zakładki */}
           <div className="flex-1 overflow-y-auto p-5">
-            {activeTab === 'general' && <GeneralTab />}
+            {activeTab === 'general' && <GeneralTab settings={settings.vision} onSave={v => saveSection('vision', v)} />}
             {activeTab === 'osc' && <OscTab settings={settings.osc} onSave={v => saveSection('osc', v)} />}
             {activeTab === 'midi' && <MidiTab settings={settings.midi} onSave={v => saveSection('midi', v)} />}
             {activeTab === 'atem' && <AtemTab settings={settings.atem} onSave={v => saveSection('atem', v)} />}
@@ -222,12 +222,12 @@ function TestButton({ onClick, label, result }: {
 
 // ── Zakładka: Ogólne ────────────────────────────────────
 
-function GeneralTab() {
+function GeneralTab({ settings, onSave }: { settings: VisionSettings; onSave: (v: Partial<VisionSettings>) => void }) {
   return (
     <div>
       <SectionTitle>Ustawienia ogólne</SectionTitle>
       <p className="text-sm text-slate-500 mb-4">
-        Język interfejsu i automatyczny zapis — wkrótce dostępne.
+        Język interfejsu, automatyczny zapis i centralny routing wizji.
       </p>
       <FieldRow label="Język">
         <select
@@ -240,6 +240,25 @@ function GeneralTab() {
       <FieldRow label="Automatyczny zapis">
         <Toggle checked={true} onChange={() => {}} label="Włączony (zawsze)" />
       </FieldRow>
+      <div className="mt-6 border-t border-slate-700 pt-4">
+        <SectionTitle>Aktywny switcher wizji</SectionTitle>
+        <p className="text-sm text-slate-500 mb-3">
+          Wybierz, który switcher ma reagować na vision cue z timeline.
+          Tylko jeden switcher może być aktywny jednocześnie.
+        </p>
+        <FieldRow label="Switcher">
+          <select
+            value={settings.targetSwitcher}
+            onChange={e => onSave({ targetSwitcher: e.target.value as VisionSettings['targetSwitcher'] })}
+            className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200"
+          >
+            <option value="none">Brak (wyłączony)</option>
+            <option value="atem">ATEM (BlackMagic)</option>
+            <option value="obs">OBS Studio</option>
+            <option value="vmix">vMix</option>
+          </select>
+        </FieldRow>
+      </div>
     </div>
   );
 }

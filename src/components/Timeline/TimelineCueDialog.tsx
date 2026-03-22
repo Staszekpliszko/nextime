@@ -73,6 +73,8 @@ export function TimelineCueDialog({
   const [cameraNumber, setCameraNumber] = useState<number>((existingData.camera_number as number) ?? 1);
   const [shotName, setShotName] = useState<string>((existingData.shot_name as string) ?? '');
   const [visionColor, setVisionColor] = useState<string>((existingData.color as string) ?? '#3b82f6');
+  const [transitionType, setTransitionType] = useState<string>((existingData.transition_type as string) ?? 'Cut');
+  const [transitionDurationMs, setTransitionDurationMs] = useState<number>((existingData.transition_duration_ms as number) ?? 500);
 
   // Lyric
   const [lyricText, setLyricText] = useState<string>((existingData.text as string) ?? '');
@@ -187,6 +189,8 @@ export function TimelineCueDialog({
           director_notes: '',
           operator_note: '',
           color: visionColor,
+          transition_type: transitionType,
+          transition_duration_ms: transitionType !== 'Cut' ? transitionDurationMs : 0,
         };
       case 'vision_fx':
         return { effect_name: shotName || 'FX', macro_id: undefined, key_on: true };
@@ -208,7 +212,7 @@ export function TimelineCueDialog({
       default:
         return {};
     }
-  }, [cueType, cameraNumber, shotName, visionColor, lyricText, markerLabel, markerColor, markerPreWarnFrames,
+  }, [cueType, cameraNumber, shotName, visionColor, transitionType, transitionDurationMs, lyricText, markerLabel, markerColor, markerPreWarnFrames,
       oscAddress, oscArgs, oscHost, oscPort, midiMessageType, midiChannel, midiNoteOrCc, midiVelocity,
       gpiChannel, gpiTriggerType, gpiPulseMs, mediaFilePath, mediaVolume, mediaLoop, mediaOffsetFrames, tcOutStr]);
 
@@ -329,6 +333,39 @@ export function TimelineCueDialog({
                     />
                   ))}
                 </div>
+              </div>
+              {/* Typ przejścia (transition) */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[10px] text-slate-500 block mb-0.5">Typ przejścia</label>
+                  <select
+                    value={transitionType}
+                    onChange={e => setTransitionType(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                  >
+                    <option value="Cut">Cut (natychmiastowe)</option>
+                    <option value="Fade">Fade (przenikanie)</option>
+                    <option value="Merge">Merge</option>
+                    <option value="Wipe">Wipe</option>
+                    <option value="Zoom">Zoom</option>
+                    <option value="Stinger1">Stinger 1</option>
+                    <option value="Stinger2">Stinger 2</option>
+                  </select>
+                </div>
+                {transitionType !== 'Cut' && (
+                  <div className="w-28">
+                    <label className="text-[10px] text-slate-500 block mb-0.5">Czas (ms)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={10000}
+                      step={50}
+                      value={transitionDurationMs}
+                      onChange={e => setTransitionDurationMs(Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
             </>
           )}

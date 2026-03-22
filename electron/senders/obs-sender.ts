@@ -145,12 +145,14 @@ export class ObsSender extends EventEmitter {
     }
   }
 
-  /** Podpina się do engine — nasłuchuje na 'vision-cue-changed' */
-  attach(engine: EventEmitter): void {
-    engine.on('vision-cue-changed', (activeCue: { data: Record<string, unknown> } | null, _nextCue: unknown) => {
-      this.handleVisionCueChanged(activeCue);
-    });
-    console.log('[ObsSender] Podpięty do engine (vision-cue-changed)');
+  /**
+   * Podpina się do engine.
+   * UWAGA: Od Fazy 27 vision-cue-changed jest obsługiwane przez VisionRouter,
+   * nie bezpośrednio przez ObsSender.
+   */
+  attach(_engine: EventEmitter): void {
+    // Vision routing przeniesiony do VisionRouter (Faza 27)
+    console.log('[ObsSender] Podpięty do engine (vision routing przez VisionRouter)');
   }
 
   /** Łączy się z OBS WebSocket */

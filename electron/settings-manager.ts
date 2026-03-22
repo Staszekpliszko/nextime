@@ -72,6 +72,11 @@ export interface VmixSettings {
   transitionDuration: number;
 }
 
+export interface VisionSettings {
+  /** Aktywny switcher wizji — tylko jeden na raz */
+  targetSwitcher: 'atem' | 'obs' | 'vmix' | 'none';
+}
+
 export interface AllSettings {
   osc: OscSettings;
   midi: MidiSettings;
@@ -81,6 +86,7 @@ export interface AllSettings {
   ptz: PtzSettings;
   obs: ObsSettings;
   vmix: VmixSettings;
+  vision: VisionSettings;
 }
 
 // ── Domyślne wartości ───────────────────────────────────
@@ -94,6 +100,7 @@ const DEFAULTS: AllSettings = {
   ptz: { enabled: false, cameras: [] },
   obs: { ip: '127.0.0.1', port: 4455, password: '', enabled: false, autoSwitch: true, sceneMap: {} },
   vmix: { ip: '127.0.0.1', port: 8088, enabled: false, autoSwitch: true, inputMap: {}, transitionType: 'Cut', transitionDuration: 0 },
+  vision: { targetSwitcher: 'none' },
 };
 
 // ── Typ sekcji ──────────────────────────────────────────
@@ -260,6 +267,21 @@ export class SettingsManager {
       transitionDuration: vmix.transitionDuration,
     });
 
+    // Vision Router — aktywny switcher (auto-detect jeśli 'none')
+    let targetSwitcher = this.cache.vision.targetSwitcher;
+    if (targetSwitcher === 'none') {
+      // Wsteczna kompatybilność: jeśli nie ustawiono targetSwitcher,
+      // ale jakiś switcher jest enabled z autoSwitch → użyj go
+      if (vmix.enabled && vmix.autoSwitch) {
+        targetSwitcher = 'vmix';
+      } else if (obs.enabled && obs.autoSwitch) {
+        targetSwitcher = 'obs';
+      } else if (atem.enabled && atem.autoSwitch) {
+        targetSwitcher = 'atem';
+      }
+    }
+    senderManager.visionRouter.updateConfig({ targetSwitcher });
+
     console.log('[SettingsManager] Ustawienia zastosowane do senderów');
   }
 
@@ -316,6 +338,11 @@ export class SettingsManager {
           inputMap: this.cache.vmix.inputMap,
           transitionType: this.cache.vmix.transitionType,
           transitionDuration: this.cache.vmix.transitionDuration,
+        });
+        break;
+      case 'vision':
+        senderManager.visionRouter.updateConfig({
+          targetSwitcher: this.cache.vision.targetSwitcher,
         });
         break;
     }

@@ -17,7 +17,7 @@ export function registerSettingsIpcHandlers(
 
   /** Pobiera ustawienia jednej sekcji (np. 'osc', 'midi', 'atem') */
   ipcMain.handle('nextime:getSettingsSection', (_event, section: string) => {
-    const validSections: SettingsSection[] = ['osc', 'midi', 'atem', 'ltc', 'gpi', 'ptz', 'obs', 'vmix'];
+    const validSections: SettingsSection[] = ['osc', 'midi', 'atem', 'ltc', 'gpi', 'ptz', 'obs', 'vmix', 'vision'];
     if (!validSections.includes(section as SettingsSection)) {
       throw new Error(`Nieznana sekcja ustawień: ${section}`);
     }
@@ -26,7 +26,7 @@ export function registerSettingsIpcHandlers(
 
   /** Aktualizuje ustawienia sekcji i propaguje do sendera */
   ipcMain.handle('nextime:updateSettings', (_event, section: string, values: Record<string, unknown>) => {
-    const validSections: SettingsSection[] = ['osc', 'midi', 'atem', 'ltc', 'gpi', 'ptz', 'obs', 'vmix'];
+    const validSections: SettingsSection[] = ['osc', 'midi', 'atem', 'ltc', 'gpi', 'ptz', 'obs', 'vmix', 'vision'];
     if (!validSections.includes(section as SettingsSection)) {
       throw new Error(`Nieznana sekcja ustawień: ${section}`);
     }

@@ -1492,23 +1492,29 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 28 — SettingsPanel: zakładki OBS i vMix [PLANOWANA]
+## Faza 28 — SettingsPanel: zakładki OBS i vMix [UKOŃCZONA w ramach Faz 25-27]
 
-- [ ] `ObsSettingsTab.tsx` — IP, port, hasło, sceneMap, Połącz/Rozłącz, lista scen live
-- [ ] `VmixSettingsTab.tsx` — IP, port, lista inputów live
-- [ ] `SwitcherSelectField.tsx` — dropdown: ATEM/OBS/vMix/None
-- [ ] IPC: obsConnect, obsDisconnect, obsGetScenes, vmixConnect, vmixGetInputs
-- [ ] Testy: ~10
+- [x] `ObsSettingsTab.tsx` — IP, port, hasło, sceneMap, Połącz/Rozłącz, lista scen live
+- [x] `VmixSettingsTab.tsx` — IP, port, lista inputów live
+- [x] `SwitcherSelectField.tsx` — dropdown: ATEM/OBS/vMix/None
+- [x] IPC: obsConnect, obsDisconnect, obsGetScenes, vmixConnect, vmixGetInputs
+- [x] Testy: zaimplementowane w Fazach 25-27
 
 ---
 
-## Faza 29 — OBS/vMix Feedback → UI [PLANOWANA]
+## Faza 29 — OBS/vMix Feedback → UI [UKOŃCZONA]
 
-- [ ] `SwitcherPanel.tsx` — zastępuje AtemPanel: PGM/PRV tally, lista inputów z kolorami
-- [ ] `useSwitcherStatus.ts` — hook polling co 200ms
-- [ ] WS broadcast: switcher:program-changed, switcher:preview-changed
-- [ ] ShotlistPanel — tally kolory (czerwony=PGM, zielony=PRV)
-- [ ] Testy: ~10
+- [x] `electron/ipc/switcher-ipc.ts` — zunifikowane IPC: switcherGetStatus, switcherSetPreview, switcherCut
+- [x] `src/hooks/useSwitcherStatus.ts` — hook polling status aktywnego switchera co 500ms
+- [x] `src/components/SwitcherPanel/SwitcherPanel.tsx` — uniwersalny panel PGM/PRV tally (ATEM/OBS/vMix)
+- [x] `ShotlistPanel.tsx` — tally kolory (czerwony=PGM, zielony=PRV) na liście vision cue'ów
+- [x] `TransportBar.tsx` — zunifikowany wskaźnik switchera (zastępuje wskaźnik ATEM)
+- [x] `App.tsx` — podmiana AtemPanel → SwitcherPanel, uniwersalny przycisk "Switcher"
+- [x] `electron/preload.ts` + `electron.d.ts` — nowe API: switcherGetStatus, switcherSetPreview, switcherCut
+- [x] `electron/main.ts` — rejestracja registerSwitcherIpcHandlers
+- [x] Testy: 10 (tests/unit/switcher-panel.test.ts)
+
+**Statystyki Fazy 29:** 863 testów (853 + 10 nowych), 7 plików nowych/zmodyfikowanych
 
 ---
 

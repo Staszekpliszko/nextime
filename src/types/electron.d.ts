@@ -6,6 +6,7 @@ import type { Act, CreateActInput, UpdateActInput } from '../../electron/db/repo
 import type { Track, CreateTrackInput, UpdateTrackInput } from '../../electron/db/repositories/track.repo';
 import type { TimelineCue, CreateTimelineCueInput, UpdateTimelineCueInput } from '../../electron/db/repositories/timeline-cue.repo';
 import type { AtemStatus } from '../../electron/senders/atem-sender';
+import type { UnifiedSwitcherStatus } from '../../electron/ipc/switcher-ipc';
 import type { ObsStatus } from '../../electron/senders/obs-sender';
 import type { VmixStatus } from '../../electron/senders/vmix-sender';
 import type { VmixInput } from '../../electron/senders/vmix-xml-parser';
@@ -191,6 +192,11 @@ export interface NextimeApi {
   vmixPlayMedia(input: number): Promise<{ ok: boolean; error?: string }>;
   vmixPauseMedia(input: number): Promise<{ ok: boolean; error?: string }>;
   vmixSetVolume(input: number, volume: number): Promise<{ ok: boolean; error?: string }>;
+
+  // ── Switcher (Faza 29) ────────────────────────────────────
+  switcherGetStatus(): Promise<UnifiedSwitcherStatus>;
+  switcherSetPreview(inputId: string): Promise<{ ok: boolean; error?: string }>;
+  switcherCut(inputId: string): Promise<{ ok: boolean; error?: string }>;
 
   // ── ATEM ────────────────────────────────────────────────
   atemGetStatus(): Promise<AtemStatus>;

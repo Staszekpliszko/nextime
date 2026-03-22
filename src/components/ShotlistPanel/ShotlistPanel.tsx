@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
 import { framesToTimecode, framesToShortTimecode } from '@/utils/timecode';
+import { useSwitcherStatus } from '@/hooks/useSwitcherStatus';
 
 interface ShotlistPanelProps {
   sendCommand: (event: string, payload?: Record<string, unknown>) => void;
@@ -17,6 +18,9 @@ export function ShotlistPanel({ sendCommand }: ShotlistPanelProps) {
   const currentTcFrames = usePlaybackStore(s => s.currentTcFrames);
   const holdMode = usePlaybackStore(s => s.holdMode);
   const addTimelineCue = usePlaybackStore(s => s.addTimelineCue);
+
+  // Faza 29: tally z aktywnego switchera
+  const switcherStatus = useSwitcherStatus(500);
 
   // Formularz dodawania vision cue
   const [showAddForm, setShowAddForm] = useState(false);
@@ -120,14 +124,20 @@ export function ShotlistPanel({ sendCommand }: ShotlistPanelProps) {
           const isActive = activeVisionCue?.id === cue.id;
           const isNext = nextVisionCue?.id === cue.id;
 
+          // Faza 29: tally — sprawdź czy kamera jest na PGM/PRV switchera
+          const isTallyPgm = switcherStatus.connected && switcherStatus.programNumber === cue.camera_number;
+          const isTallyPrv = switcherStatus.connected && switcherStatus.previewNumber === cue.camera_number && !isTallyPgm;
+
           return (
             <button
               key={cue.id}
               onClick={() => handleScrub(cue.tc_in_frames)}
               className={`w-full text-left px-3 py-2 border-b border-slate-700/50 transition-colors
                 ${isActive ? 'bg-emerald-900/40 border-l-2 border-l-emerald-400' : ''}
-                ${isNext ? 'bg-amber-900/20 border-l-2 border-l-amber-400' : ''}
+                ${isNext && !isActive ? 'bg-amber-900/20 border-l-2 border-l-amber-400' : ''}
                 ${!isActive && !isNext ? 'hover:bg-slate-700/50 border-l-2 border-l-transparent' : ''}
+                ${isTallyPgm ? 'ring-1 ring-inset ring-red-500/60 bg-red-900/20' : ''}
+                ${isTallyPrv ? 'ring-1 ring-inset ring-green-500/60 bg-green-900/20' : ''}
               `}
             >
               <div className="flex items-center gap-2">
@@ -151,11 +161,23 @@ export function ShotlistPanel({ sendCommand }: ShotlistPanelProps) {
                   </div>
                 </div>
 
+                {/* Faza 29: Tally badge */}
+                {isTallyPgm && (
+                  <span className="flex-shrink-0 px-1 py-0.5 rounded text-[8px] font-bold bg-red-600 text-white">
+                    PGM
+                  </span>
+                )}
+                {isTallyPrv && (
+                  <span className="flex-shrink-0 px-1 py-0.5 rounded text-[8px] font-bold bg-green-600 text-white">
+                    PRV
+                  </span>
+                )}
+
                 {/* Status badge */}
-                {isActive && (
+                {isActive && !isTallyPgm && !isTallyPrv && (
                   <span className="flex-shrink-0 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 )}
-                {isNext && (
+                {isNext && !isTallyPgm && !isTallyPrv && (
                   <span className="flex-shrink-0 text-[9px] text-amber-400 font-semibold">
                     NEXT
                   </span>

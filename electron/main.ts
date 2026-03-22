@@ -12,6 +12,7 @@ import { registerSettingsIpcHandlers } from './ipc/settings-ipc';
 import { registerWindowIpcHandlers } from './ipc/window-ipc';
 import { registerObsIpcHandlers } from './ipc/obs-ipc';
 import { registerVmixIpcHandlers } from './ipc/vmix-ipc';
+import { registerSwitcherIpcHandlers } from './ipc/switcher-ipc';
 import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
@@ -242,6 +243,11 @@ function registerIpcHandlers(): void {
   // Faza 26: vMix IPC
   if (senderManager) {
     registerVmixIpcHandlers(senderManager);
+  }
+
+  // Faza 29: Zunifikowane Switcher IPC
+  if (senderManager && settingsManager) {
+    registerSwitcherIpcHandlers(senderManager, settingsManager);
   }
 
   // Faza 19: Window IPC (zarządzanie oknami prompter/output)

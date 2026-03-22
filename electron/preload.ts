@@ -545,6 +545,19 @@ contextBridge.exposeInMainWorld('nextime', {
   vmixSetVolume: (input: number, volume: number): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('nextime:vmixSetVolume', input, volume),
 
+  // ── Switcher (Faza 29) ────────────────────────────────────────
+  /** Pobiera zunifikowany status aktywnego switchera wizji */
+  switcherGetStatus: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:switcherGetStatus'),
+
+  /** Ustawia Preview na aktywnym switcherze */
+  switcherSetPreview: (inputId: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:switcherSetPreview', inputId),
+
+  /** CUT na aktywnym switcherze (przełącz input na Program) */
+  switcherCut: (inputId: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:switcherCut', inputId),
+
   // ── Settings (Faza 18) ──────────────────────────────────────
   /** Pobiera wszystkie ustawienia */
   getSettings: (): Promise<unknown> =>

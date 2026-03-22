@@ -3,6 +3,7 @@ import { usePlayback, formatTime } from '@/hooks/usePlayback';
 import { usePlaybackStore } from '@/store/playback.store';
 import { framesToTimecode } from '@/utils/timecode';
 import { ConnectedClients } from '@/components/ConnectedClients/ConnectedClients';
+import { useSwitcherStatus } from '@/hooks/useSwitcherStatus';
 
 interface TransportBarProps {
   sendCommand: (event: string, payload?: Record<string, unknown>) => void;
@@ -23,8 +24,9 @@ export function TransportBar({ sendCommand, connected }: TransportBarProps) {
   const activeMarker = usePlaybackStore(s => s.activeMarker);
   const ltcSource = usePlaybackStore(s => s.ltcSource);
   const reconnecting = usePlaybackStore(s => s.reconnecting);
-  const atemConnected = usePlaybackStore(s => s.atemConnected);
-  const atemProgramInput = usePlaybackStore(s => s.atemProgramInput);
+
+  // Faza 29: zunifikowany status switchera
+  const switcherStatus = useSwitcherStatus(500);
 
   const handlePlay = () => sendCommand('cmd:play');
   const handlePause = () => sendCommand('cmd:pause');
@@ -140,19 +142,24 @@ export function TransportBar({ sendCommand, connected }: TransportBarProps) {
         </button>
       )}
 
-      {/* Faza 8: ATEM status */}
-      {isTimeline && (
+      {/* Faza 29: Wskaźnik aktywnego switchera wizji */}
+      {isTimeline && switcherStatus.switcherType !== 'none' && (
         <div className="flex items-center gap-1.5">
           <div
-            className={`w-2 h-2 rounded-full ${atemConnected ? 'bg-green-400' : 'bg-slate-600'}`}
-            title={atemConnected ? 'ATEM Połączony' : 'ATEM Rozłączony'}
+            className={`w-2 h-2 rounded-full ${switcherStatus.connected ? 'bg-green-400' : 'bg-slate-600'}`}
+            title={switcherStatus.connected ? `${switcherStatus.switcherType.toUpperCase()} Połączony` : `${switcherStatus.switcherType.toUpperCase()} Rozłączony`}
           />
-          <span className={`text-[10px] font-bold uppercase ${atemConnected ? 'text-green-400' : 'text-slate-500'}`}>
-            ATEM
+          <span className={`text-[10px] font-bold uppercase ${switcherStatus.connected ? 'text-green-400' : 'text-slate-500'}`}>
+            {switcherStatus.switcherType === 'atem' ? 'ATEM' : switcherStatus.switcherType === 'obs' ? 'OBS' : 'vMix'}
           </span>
-          {atemConnected && atemProgramInput !== null && (
-            <span className="text-[10px] text-slate-300 font-mono">
-              PGM:{atemProgramInput}
+          {switcherStatus.connected && switcherStatus.programInput !== null && (
+            <span className="text-[10px] text-red-400 font-mono font-bold" title="Program">
+              PGM:{switcherStatus.programInput}
+            </span>
+          )}
+          {switcherStatus.connected && switcherStatus.previewInput !== null && (
+            <span className="text-[10px] text-green-400 font-mono" title="Preview">
+              PRV:{switcherStatus.previewInput}
             </span>
           )}
         </div>

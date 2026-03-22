@@ -7,12 +7,13 @@ import { Timeline } from '@/components/Timeline/Timeline';
 import { TimelineCueDialog } from '@/components/Timeline/TimelineCueDialog';
 import { ShotlistPanel } from '@/components/ShotlistPanel/ShotlistPanel';
 import { ActSelector } from '@/components/ActSelector/ActSelector';
-import { AtemPanel } from '@/components/AtemPanel/AtemPanel';
+import { SwitcherPanel } from '@/components/SwitcherPanel/SwitcherPanel';
 import { OutputPanel } from '@/components/OutputPanel/OutputPanel';
 import { CameraPresetPanel } from '@/components/CameraPresetPanel/CameraPresetPanel';
 import { MediaLibraryPanel } from '@/components/MediaLibraryPanel/MediaLibraryPanel';
 import { MediaPlayer } from '@/components/MediaPlayer/MediaPlayer';
 import type { MediaPlayerState } from '@/components/MediaPlayer/MediaPlayer';
+import { useSwitcherStatus } from '@/hooks/useSwitcherStatus';
 import { MediaStatusBar } from '@/components/MediaPlayer/MediaStatusBar';
 import { useRundownSocket } from '@/hooks/useRundownSocket';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -72,8 +73,8 @@ export default function App() {
   const setPrivateNotes = usePlaybackStore(s => s.setPrivateNotes);
   const setHiddenColumnIds = usePlaybackStore(s => s.setHiddenColumnIds);
 
-  // Faza 8: ATEM panel
-  const [showAtemPanel, setShowAtemPanel] = useState(false);
+  // Faza 29: Switcher panel (zastępuje AtemPanel)
+  const [showSwitcherPanel, setShowSwitcherPanel] = useState(false);
   // Faza 9: Output panel
   const [showOutputPanel, setShowOutputPanel] = useState(false);
   // Faza 10: Camera Preset + Media Library panel
@@ -83,7 +84,8 @@ export default function App() {
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const atemConnected = usePlaybackStore(s => s.atemConnected);
+  // Faza 29: zunifikowany status switchera (zamiast atemConnected)
+  const switcherStatus = useSwitcherStatus(1000);
 
   // Faza 24: stan media playback
   const [mediaState, setMediaState] = useState<MediaPlayerState>({
@@ -676,14 +678,19 @@ export default function App() {
               Multimedia
             </button>
             <button
-              onClick={() => setShowAtemPanel(true)}
+              onClick={() => setShowSwitcherPanel(true)}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                atemConnected
+                switcherStatus.connected
                   ? 'bg-green-600/20 text-green-400 border border-green-600/30'
-                  : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  : switcherStatus.switcherType !== 'none'
+                    ? 'bg-red-600/20 text-red-400 border border-red-600/30'
+                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
               }`}
             >
-              ATEM {atemConnected ? 'ON' : 'OFF'}
+              {switcherStatus.switcherType !== 'none'
+                ? `${switcherStatus.switcherType.toUpperCase()} ${switcherStatus.connected ? 'ON' : 'OFF'}`
+                : 'Switcher'
+              }
             </button>
           </>
         )}
@@ -767,8 +774,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Faza 8: ATEM Panel dialog */}
-      {showAtemPanel && <AtemPanel onClose={() => setShowAtemPanel(false)} />}
+      {/* Faza 29: Switcher Panel dialog (zastępuje AtemPanel) */}
+      {showSwitcherPanel && <SwitcherPanel onClose={() => setShowSwitcherPanel(false)} />}
 
       {/* Faza 9: Output Panel dialog */}
       {showOutputPanel && <OutputPanel onClose={() => setShowOutputPanel(false)} />}

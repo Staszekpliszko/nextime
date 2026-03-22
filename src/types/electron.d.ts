@@ -115,6 +115,12 @@ export interface NextimeApi {
   getLtcStatus(): Promise<LtcReaderStatus>;
   setLtcSource(source: string): Promise<void>;
 
+  // ── LTC MTC (Faza 22) ────────────────────────────────────
+  ltcListMtcPorts(): Promise<Array<{ index: number; name: string }>>;
+  ltcConnectMtc(portIndex: number): Promise<{ ok: boolean; error?: string }>;
+  ltcDisconnectMtc(): Promise<void>;
+  ltcIsMidiAvailable(): Promise<boolean>;
+
   // ── Private Notes (Faza 13) ──────────────────────────────
   getPrivateNotes(rundownId: string): Promise<PrivateNote[]>;
   upsertPrivateNote(cueId: string, content: string): Promise<PrivateNote>;
@@ -154,6 +160,20 @@ export interface NextimeApi {
   midiGetConfig(): Promise<{ portName: string; defaultChannel: number; enabled: boolean }>;
   midiUpdateConfig(config: Record<string, unknown>): Promise<void>;
   midiIsAvailable(): Promise<boolean>;
+
+  // ── PTZ Sender (Faza 22) ──────────────────────────────────
+  ptzConnect(cameraNumber: number): Promise<{ ok: boolean; error?: string }>;
+  ptzDisconnect(cameraNumber: number): Promise<void>;
+  ptzRecallPreset(cameraNumber: number, presetNr: number): Promise<{ ok: boolean; error?: string }>;
+  ptzGetStatus(): Promise<Array<{ cameraNumber: number; protocol: string; connected: boolean; lastError?: string }>>;
+  ptzListSerialPorts(): Promise<Array<{ path: string; manufacturer?: string }>>;
+
+  // ── GPI Sender (Faza 22) ──────────────────────────────────
+  gpiListPorts(): Promise<Array<{ path: string; manufacturer?: string; friendlyName?: string }>>;
+  gpiOpenPort(portPath: string, baudRate: number): Promise<{ ok: boolean; error?: string }>;
+  gpiClosePort(): Promise<void>;
+  gpiTestSend(): Promise<{ ok: boolean; error?: string }>;
+  gpiIsAvailable(): Promise<boolean>;
 
   // ── Settings (Faza 18) ────────────────────────────────────
   getSettings(): Promise<AllSettings>;

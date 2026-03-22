@@ -207,6 +207,23 @@ contextBridge.exposeInMainWorld('nextime', {
   setLtcSource: (source: string): Promise<void> =>
     ipcRenderer.invoke('nextime:setLtcSource', source),
 
+  // ── LTC MTC (Faza 22) ──────────────────────────────────────
+  /** Lista portów MIDI Input (dla MTC) */
+  ltcListMtcPorts: (): Promise<Array<{ index: number; name: string }>> =>
+    ipcRenderer.invoke('nextime:ltcListMtcPorts'),
+
+  /** Połącz MTC na podanym porcie MIDI Input */
+  ltcConnectMtc: (portIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:ltcConnectMtc', portIndex),
+
+  /** Rozłącz MTC */
+  ltcDisconnectMtc: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:ltcDisconnectMtc'),
+
+  /** Czy moduł MIDI Input jest dostępny */
+  ltcIsMidiAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('nextime:ltcIsMidiAvailable'),
+
   // ── CRUD TextVariable (Faza 11) ──────────────────────────
   /** Pobiera text variables dla rundownu */
   getTextVariables: (rundownId: string): Promise<unknown[]> =>
@@ -355,6 +372,48 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Sprawdza czy moduł MIDI jest dostępny */
   midiIsAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('nextime:midiIsAvailable'),
+
+  // ── PTZ Sender (Faza 22) ───────────────────────────────────
+  /** Łączy z kamerą PTZ */
+  ptzConnect: (cameraNumber: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:ptzConnect', cameraNumber),
+
+  /** Rozłącza kamerę PTZ */
+  ptzDisconnect: (cameraNumber: number): Promise<void> =>
+    ipcRenderer.invoke('nextime:ptzDisconnect', cameraNumber),
+
+  /** Recall preset na kamerze PTZ */
+  ptzRecallPreset: (cameraNumber: number, presetNr: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:ptzRecallPreset', cameraNumber, presetNr),
+
+  /** Status wszystkich kamer PTZ */
+  ptzGetStatus: (): Promise<Array<{ cameraNumber: number; protocol: string; connected: boolean; lastError?: string }>> =>
+    ipcRenderer.invoke('nextime:ptzGetStatus'),
+
+  /** Lista portów serial (dla VISCA Serial) */
+  ptzListSerialPorts: (): Promise<Array<{ path: string; manufacturer?: string }>> =>
+    ipcRenderer.invoke('nextime:ptzListSerialPorts'),
+
+  // ── GPI Sender (Faza 22) ───────────────────────────────────
+  /** Lista dostępnych portów serial */
+  gpiListPorts: (): Promise<Array<{ path: string; manufacturer?: string; friendlyName?: string }>> =>
+    ipcRenderer.invoke('nextime:gpiListPorts'),
+
+  /** Otwiera port serial GPI */
+  gpiOpenPort: (portPath: string, baudRate: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:gpiOpenPort', portPath, baudRate),
+
+  /** Zamyka port serial GPI */
+  gpiClosePort: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:gpiClosePort'),
+
+  /** Testowy trigger GPI */
+  gpiTestSend: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:gpiTestSend'),
+
+  /** Czy moduł serialport jest dostępny */
+  gpiIsAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('nextime:gpiIsAvailable'),
 
   // ── Settings (Faza 18) ──────────────────────────────────────
   /** Pobiera wszystkie ustawienia */

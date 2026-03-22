@@ -27,11 +27,14 @@ export interface AtemSettings {
 export interface LtcSettings {
   source: 'internal' | 'ltc' | 'mtc' | 'manual';
   enabled: boolean;
+  mtcPortIndex: number;
 }
 
 export interface GpiSettings {
   enabled: boolean;
   defaultPulseMs: number;
+  portPath: string;
+  baudRate: number;
 }
 
 export interface PtzSettings {
@@ -40,7 +43,13 @@ export interface PtzSettings {
     number: number;
     ip: string;
     port: number;
-    protocol: 'visca_ip';
+    protocol: 'visca_ip' | 'visca_serial' | 'onvif' | 'ndi';
+    serialPath?: string;
+    serialBaudRate?: number;
+    ndiSourceName?: string;
+    onvifProfileToken?: string;
+    onvifUsername?: string;
+    onvifPassword?: string;
   }>;
 }
 
@@ -59,8 +68,8 @@ const DEFAULTS: AllSettings = {
   osc: { host: '127.0.0.1', port: 8000, enabled: true },
   midi: { portName: 'NextTime Virtual MIDI', defaultChannel: 1, enabled: true },
   atem: { ip: '192.168.10.240', meIndex: 0, transitionType: 'cut', mixDurationFrames: 25, autoSwitch: true, enabled: false },
-  ltc: { source: 'internal', enabled: true },
-  gpi: { enabled: false, defaultPulseMs: 100 },
+  ltc: { source: 'internal', enabled: true, mtcPortIndex: -1 },
+  gpi: { enabled: false, defaultPulseMs: 100, portPath: '', baudRate: 9600 },
   ptz: { enabled: false, cameras: [] },
 };
 
@@ -186,6 +195,7 @@ export class SettingsManager {
     senderManager.ltc.updateConfig({
       source: ltc.source,
       enabled: ltc.enabled,
+      mtcPortIndex: ltc.mtcPortIndex,
     });
 
     // GPI
@@ -193,6 +203,8 @@ export class SettingsManager {
     senderManager.gpi.updateConfig({
       enabled: gpi.enabled,
       defaultPulseMs: gpi.defaultPulseMs,
+      portPath: gpi.portPath,
+      baudRate: gpi.baudRate,
     });
 
     // PTZ
@@ -227,6 +239,7 @@ export class SettingsManager {
         senderManager.ltc.updateConfig({
           source: this.cache.ltc.source,
           enabled: this.cache.ltc.enabled,
+          mtcPortIndex: this.cache.ltc.mtcPortIndex,
         });
         break;
       case 'gpi':

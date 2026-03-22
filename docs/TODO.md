@@ -1319,33 +1319,47 @@ Konfiguracja per kamera: `protocol` field w `PtzCameraConfig` — wybór protoko
 
 ---
 
-## Faza 22 — GPI Sender + LTC Reader + PTZ Multi-Protocol [PLANOWANA]
+## Faza 22 — GPI Sender + LTC Reader + PTZ Multi-Protocol [UKOŃCZONA]
 
-- [ ] **22A — GPI Sender (serialport)**
-  - [ ] Dependency: `serialport` (npm)
-  - [ ] gpi-sender.ts — prawdziwa implementacja: otwarcie portu, wysyłanie trigger
-  - [ ] IPC: nextime:gpiListPorts, nextime:gpiConfigure
-  - [ ] Graceful fallback
-- [ ] **22B — LTC Reader (audio input / MTC przez MIDI)**
-  - [ ] ltc-reader.ts — prawdziwy odczyt LTC z karty dźwiękowej lub MTC z MIDI
-  - [ ] Alternatywa: MTC przez node-midi (z Fazy 17)
-- [ ] **22C — PTZ Sender (Multi-Protocol)**
-  - [ ] Rozszerz typ `protocol` w PtzCameraConfig:
-    - [ ] `visca_ip` — VISCA over IP (TCP/UDP, port 52381) — Sony, PTZOptics, Panasonic — PRIORYTET
-    - [ ] `visca_serial` — VISCA over Serial (RS-422/RS-232) — Sony BRC, starsze kamery
-    - [ ] `ndi` — NDI PTZ Control (via NDI SDK) — PTZOptics NDI, BirdDog
-    - [ ] `onvif` — ONVIF Profile S (HTTP/SOAP) — kamery IP ogólne
-    - [ ] `pelco_d` — Pelco-D (RS-485 serial) — kamery CCTV/security
-  - [ ] ptz-sender.ts — abstrakcja PtzDriver per protokół:
-    - [ ] ViscaIpDriver — socket TCP, komendy recall preset, pan/tilt/zoom
-    - [ ] ViscaSerialDriver — serialport RS-422, te same komendy VISCA
-    - [ ] NdiPtzDriver — NDI SDK (opcjonalnie, graceful fallback)
-    - [ ] OnvifDriver — HTTP SOAP (opcjonalnie)
-    - [ ] PelcoDDriver — serial RS-485, komendy Pelco-D (opcjonalnie)
-  - [ ] Obsługa wielu kamer równocześnie, każda z własnym protokołem
-  - [ ] UI: dropdown protokołu w SettingsPanel/PTZ (już przygotowany w Fazie 18)
-  - [ ] Auto-detection portów serialowych (dla visca_serial i pelco_d)
-- [ ] Testy: ~20
+- [x] **22A — GPI Sender (serialport)** — prawdziwa implementacja
+  - [x] Dependency: `serialport` 13.0 (npm)
+  - [x] `electron/senders/gpi-serial.ts` — GpiSerialPort: listPorts, open, close, sendTrigger (pulse/on/off)
+  - [x] `electron/senders/gpi-sender.ts` — rozszerzony o serial: openPort, closePort, testSend, isSerialAvailable
+  - [x] Graceful fallback: jeśli serialport niedostępny → logowanie do konsoli (jak MIDI)
+  - [x] IPC: nextime:gpiListPorts, nextime:gpiOpenPort, nextime:gpiClosePort, nextime:gpiTestSend, nextime:gpiIsAvailable
+  - [x] Preload: gpiListPorts, gpiOpenPort, gpiClosePort, gpiTestSend, gpiIsAvailable
+  - [x] SettingsPanel GpiTab: lista portów COM, baud rate (9600-115200), Otwórz/Zamknij port, Test trigger
+  - [x] SettingsManager: rozszerzony GpiSettings o portPath, baudRate
+  - [x] Testy: 14 (GpiSerialPort + GpiSender)
+- [x] **22B — LTC Reader (MTC przez MIDI)** — prawdziwa implementacja MTC
+  - [x] `electron/senders/mtc-parser.ts` — MtcParser: parsowanie Quarter Frame (8 QF → pełny TC), Full Frame, formatTc
+  - [x] `electron/senders/ltc-reader.ts` — rozszerzony o prawdziwy tryb MTC:
+    - [x] MidiInputPort DI (analogiczny wzorzec jak MidiSender)
+    - [x] connectMtc(portIndex) → otwiera port MIDI Input, nasłuchuje 0xF1 QF
+    - [x] disconnectMtc() → zamyka port
+    - [x] listMtcPorts() → lista portów MIDI Input
+    - [x] Obsługa frame rates: 24, 25, 29.97df, 30
+    - [x] Status: lastTcFormatted (HH:MM:SS:FF), midiAvailable
+  - [x] IPC: nextime:ltcListMtcPorts, nextime:ltcConnectMtc, nextime:ltcDisconnectMtc, nextime:ltcIsMidiAvailable
+  - [x] SettingsPanel LtcTab: wybór portu MIDI Input, Połącz/Rozłącz MTC, wyświetlanie aktualnego TC
+  - [x] SettingsManager: rozszerzony LtcSettings o mtcPortIndex
+  - [x] Testy: 13 (MtcParser + LtcReader MTC)
+- [x] **22C — PTZ Sender (Multi-Protocol — 4 protokoły broadcastowe)**
+  - [x] Interfejs PtzDriver: connect, disconnect, recallPreset, panTilt, stop, getStatus
+  - [x] `electron/senders/ptz-drivers/visca-protocol.ts` — stałe VISCA, buildRecallPresetCmd, buildPanTiltCmd, buildStopCmd, buildZoomCmd, parseViscaResponse
+  - [x] `electron/senders/ptz-drivers/visca-ip-driver.ts` — VISCA over IP (TCP socket, port 52381) — Sony SRG/BRC, PTZOptics, Panasonic AW-UE
+  - [x] `electron/senders/ptz-drivers/visca-serial-driver.ts` — VISCA over Serial (RS-422/RS-232) z graceful fallback serialport
+  - [x] `electron/senders/ptz-drivers/onvif-driver.ts` — ONVIF Profile S (HTTP/SOAP) — kamery IP, GotoPreset, ContinuousMove, Stop
+  - [x] `electron/senders/ptz-drivers/ndi-ptz-driver.ts` — NDI PTZ Control przez HTTP CGI API (PTZOptics/BirdDog) — bez dodatkowych zależności
+  - [x] Pelco-D usunięty (kamery CCTV/security — nie broadcastowe)
+  - [x] `electron/senders/ptz-sender.ts` — multi-protocol: Map<cameraNumber, PtzDriver>, connectCamera, disconnectCamera, disconnectAll, recallPreset, getCameraStatus, getAllCameraStatuses, listSerialPorts
+  - [x] IPC: nextime:ptzConnect, nextime:ptzDisconnect, nextime:ptzRecallPreset, nextime:ptzGetStatus, nextime:ptzListSerialPorts
+  - [x] SettingsPanel PtzTab: dropdown protokołu (VISCA IP/Serial/ONVIF/NDI), pola zależne od protokołu, Połącz/Rozłącz/Test Preset per kamera, status connection dot
+  - [x] SettingsManager: rozszerzony PtzSettings o serialPath, serialBaudRate, onvifProfileToken/Username/Password
+  - [x] Testy: 22 (VISCA protocol + PtzSender)
+- [x] Testy łącznie Faza 22: 49 nowych
+
+**Statystyki Fazy 22:** 49 nowych testów, 710 łącznie (661 + 49). ~2200 linii nowego kodu.
 
 ---
 
@@ -1373,7 +1387,7 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | 19 (Multi-Window) | 9 ✅ | UKOŃCZONA |
 | 20 (Electron-Builder) | 5 ✅ | UKOŃCZONA |
 | 21 (E2E Testy) | 14 ✅ | UKOŃCZONA |
-| 22 (GPI + LTC + PTZ) | ~15 | NISKI |
-| **SUMA** | **~120** | |
+| 22 (GPI + LTC + PTZ) | 49 ✅ | UKOŃCZONA |
+| **SUMA** | **~146** | |
 
-Po Fazie 22: **~690 testów** (675 unit/integration + E2E), pełna integracja hardware, production build, E2E coverage.
+Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja hardware, production build, E2E coverage.

@@ -6,18 +6,21 @@ import { MidiSender } from './midi-sender';
 import type { MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor } from './midi-sender';
 import { GpiSender } from './gpi-sender';
 import type { GpiSenderConfig } from './gpi-sender';
+import type { SerialPortInfo, GpiSerialResult } from './gpi-serial';
 import { MediaSender } from './media-sender';
 import type { MediaSenderConfig } from './media-sender';
 import { AtemSender } from './atem-sender';
 import type { AtemSenderConfig, AtemStatus } from './atem-sender';
 import { LtcReader } from './ltc-reader';
-import type { LtcReaderConfig, LtcReaderStatus, LtcSourceType } from './ltc-reader';
+import type { LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo } from './ltc-reader';
+import { MtcParser } from './mtc-parser';
+import type { MtcTimecode } from './mtc-parser';
 import { PtzSender } from './ptz-sender';
 import type { PtzSenderConfig } from './ptz-sender';
 
 // Re-eksport wszystkich senderów
-export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, validateOscAddress };
-export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, PtzSenderConfig };
+export { OscSender, MidiSender, GpiSender, MediaSender, AtemSender, LtcReader, PtzSender, MtcParser, validateOscAddress };
+export type { OscSenderConfig, OscTestResult, OscValidationResult, MidiSenderConfig, MidiPortInfo, MidiResult, MidiOutputPort, MidiOutputConstructor, GpiSenderConfig, SerialPortInfo, GpiSerialResult, MediaSenderConfig, AtemSenderConfig, AtemStatus, LtcReaderConfig, LtcReaderStatus, LtcSourceType, MidiInputPortInfo, MtcTimecode, PtzSenderConfig };
 
 // ── SenderManager ───────────────────────────────────────
 

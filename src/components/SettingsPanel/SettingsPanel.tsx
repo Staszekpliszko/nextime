@@ -441,11 +441,51 @@ function AtemTab({ settings, onSave }: { settings: AtemSettings; onSave: (v: Par
 function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Partial<LtcSettings>) => void }) {
   const [source, setSource] = useState(settings.source);
   const [enabled, setEnabled] = useState(settings.enabled);
+  const [mtcPorts, setMtcPorts] = useState<Array<{ index: number; name: string }>>([]);
+  const [mtcPortIndex, setMtcPortIndex] = useState(settings.mtcPortIndex ?? -1);
+  const [midiAvailable, setMidiAvailable] = useState(true);
+  const [mtcStatus, setMtcStatus] = useState<string | null>(null);
+  const [ltcStatus, setLtcStatus] = useState<{ lastTcFormatted: string | null; connected: boolean } | null>(null);
+
+  useEffect(() => {
+    window.nextime.ltcIsMidiAvailable().then(setMidiAvailable).catch(() => setMidiAvailable(false));
+    window.nextime.ltcListMtcPorts().then(setMtcPorts).catch(() => setMtcPorts([]));
+    window.nextime.getLtcStatus().then(s => setLtcStatus({ lastTcFormatted: s.lastTcFormatted ?? null, connected: s.connected })).catch(() => {});
+  }, []);
+
+  // Odświeżaj status TC co 500ms gdy połączony
+  useEffect(() => {
+    if (source !== 'mtc') return;
+    const interval = setInterval(() => {
+      window.nextime.getLtcStatus().then(s => {
+        setLtcStatus({ lastTcFormatted: s.lastTcFormatted ?? null, connected: s.connected });
+      }).catch(() => {});
+    }, 500);
+    return () => clearInterval(interval);
+  }, [source]);
 
   const handleSave = async () => {
-    onSave({ source, enabled });
-    // Propaguj źródło do LTC readera
+    onSave({ source, enabled, mtcPortIndex });
     await window.nextime.setLtcSource(source);
+  };
+
+  const handleConnectMtc = async () => {
+    if (mtcPortIndex < 0) return;
+    const result = await window.nextime.ltcConnectMtc(mtcPortIndex);
+    if (result.ok) {
+      setMtcStatus('Połączono');
+      // Ustaw źródło na MTC automatycznie
+      setSource('mtc');
+      await window.nextime.setLtcSource('mtc');
+    } else {
+      setMtcStatus(`Błąd: ${result.error ?? 'nieznany'}`);
+    }
+  };
+
+  const handleDisconnectMtc = async () => {
+    await window.nextime.ltcDisconnectMtc();
+    setMtcStatus('Rozłączono');
+    setLtcStatus(null);
   };
 
   return (
@@ -462,10 +502,67 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
         >
           <option value="internal">Wewnętrzny</option>
           <option value="ltc">LTC (audio)</option>
-          <option value="mtc">MTC (MIDI)</option>
+          <option value="mtc">MTC (MIDI Timecode)</option>
           <option value="manual">Ręczny</option>
         </select>
       </FieldRow>
+
+      {/* Sekcja MTC — widoczna gdy source = mtc */}
+      {source === 'mtc' && (
+        <>
+          {!midiAvailable && (
+            <div className="mb-3 px-3 py-2 bg-yellow-600/20 border border-yellow-600/30 rounded text-xs text-yellow-400">
+              Moduł MIDI niedostępny — zainstaluj @julusian/midi
+            </div>
+          )}
+          <FieldRow label="Port MIDI Input">
+            {mtcPorts.length > 0 ? (
+              <select
+                value={mtcPortIndex}
+                onChange={e => setMtcPortIndex(Number(e.target.value))}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value={-1}>Wybierz port...</option>
+                {mtcPorts.map(p => (
+                  <option key={p.index} value={p.index}>{p.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm text-slate-500">Brak dostępnych portów MIDI Input</span>
+            )}
+          </FieldRow>
+          <FieldRow label="Połączenie MTC">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleConnectMtc}
+                disabled={mtcPortIndex < 0 || !midiAvailable}
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors"
+              >
+                Połącz
+              </button>
+              <button
+                onClick={handleDisconnectMtc}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition-colors"
+              >
+                Rozłącz
+              </button>
+              {mtcStatus && (
+                <span className={`text-xs ${mtcStatus.startsWith('Błąd') ? 'text-red-400' : 'text-green-400'}`}>
+                  {mtcStatus}
+                </span>
+              )}
+            </div>
+          </FieldRow>
+          {ltcStatus?.connected && ltcStatus.lastTcFormatted && (
+            <FieldRow label="Aktualny TC">
+              <span className="text-sm font-mono text-green-400 bg-slate-900 px-3 py-1.5 rounded">
+                {ltcStatus.lastTcFormatted}
+              </span>
+            </FieldRow>
+          )}
+        </>
+      )}
+
       <SaveButton onClick={handleSave} />
     </div>
   );
@@ -476,23 +573,114 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
 function GpiTab({ settings, onSave }: { settings: GpiSettings; onSave: (v: Partial<GpiSettings>) => void }) {
   const [enabled, setEnabled] = useState(settings.enabled);
   const [defaultPulseMs, setDefaultPulseMs] = useState(settings.defaultPulseMs);
+  const [portPath, setPortPath] = useState(settings.portPath);
+  const [baudRate, setBaudRate] = useState(settings.baudRate);
+  const [ports, setPorts] = useState<Array<{ path: string; friendlyName?: string }>>([]);
+  const [serialAvailable, setSerialAvailable] = useState(true);
+  const [portOpen, setPortOpen] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
+
+  useEffect(() => {
+    window.nextime.gpiIsAvailable().then(setSerialAvailable).catch(() => setSerialAvailable(false));
+    window.nextime.gpiListPorts().then(setPorts).catch(() => setPorts([]));
+  }, []);
 
   const handleSave = () => {
-    onSave({ enabled, defaultPulseMs });
+    onSave({ enabled, defaultPulseMs, portPath, baudRate });
+  };
+
+  const handleOpenPort = async () => {
+    if (!portPath) return;
+    const result = await window.nextime.gpiOpenPort(portPath, baudRate);
+    if (result.ok) {
+      setPortOpen(true);
+      setTestResult({ ok: true });
+    } else {
+      setTestResult({ ok: false, error: result.error });
+    }
+  };
+
+  const handleClosePort = async () => {
+    await window.nextime.gpiClosePort();
+    setPortOpen(false);
+    setTestResult(null);
+  };
+
+  const handleTest = async () => {
+    setTestResult(null);
+    const result = await window.nextime.gpiTestSend();
+    setTestResult(result);
   };
 
   return (
     <div>
       <SectionTitle>GPI (General Purpose Interface)</SectionTitle>
+      {!serialAvailable && (
+        <div className="mb-3 px-3 py-2 bg-yellow-600/20 border border-yellow-600/30 rounded text-xs text-yellow-400">
+          Moduł serialport niedostępny — zainstaluj pakiet serialport
+        </div>
+      )}
       <FieldRow label="Aktywny">
         <Toggle checked={enabled} onChange={setEnabled} label={enabled ? 'Włączony' : 'Wyłączony'} />
       </FieldRow>
       <FieldRow label="Domyślny impuls (ms)">
         <NumberInput value={defaultPulseMs} onChange={setDefaultPulseMs} min={10} max={5000} />
       </FieldRow>
-      <p className="text-xs text-slate-500 mt-2">
-        Konfiguracja hardware GPI — wkrótce dostępna (wymaga serialport/GPIO).
-      </p>
+      <FieldRow label="Port serial">
+        {ports.length > 0 ? (
+          <select
+            value={portPath}
+            onChange={e => setPortPath(e.target.value)}
+            className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Wybierz port...</option>
+            {ports.map(p => (
+              <option key={p.path} value={p.path}>
+                {p.path}{p.friendlyName ? ` (${p.friendlyName})` : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-sm text-slate-500">Brak dostępnych portów serial</span>
+        )}
+      </FieldRow>
+      <FieldRow label="Baud rate">
+        <select
+          value={baudRate}
+          onChange={e => setBaudRate(Number(e.target.value))}
+          className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+        >
+          {[9600, 19200, 38400, 57600, 115200].map(b => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+      </FieldRow>
+      <FieldRow label="Połączenie">
+        <div className="flex items-center gap-2">
+          {!portOpen ? (
+            <button
+              onClick={handleOpenPort}
+              disabled={!portPath || !serialAvailable}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors"
+            >
+              Otwórz port
+            </button>
+          ) : (
+            <button
+              onClick={handleClosePort}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition-colors"
+            >
+              Zamknij port
+            </button>
+          )}
+          <span className={`text-xs ${portOpen ? 'text-green-400' : 'text-slate-500'}`}>
+            {portOpen ? 'Otwarty' : 'Zamknięty'}
+          </span>
+        </div>
+      </FieldRow>
+      <FieldRow label="Test">
+        <TestButton onClick={handleTest} label="Testuj trigger" result={testResult} />
+      </FieldRow>
       <SaveButton onClick={handleSave} />
     </div>
   );
@@ -503,6 +691,18 @@ function GpiTab({ settings, onSave }: { settings: GpiSettings; onSave: (v: Parti
 function PtzTab({ settings, onSave }: { settings: PtzSettings; onSave: (v: Partial<PtzSettings>) => void }) {
   const [enabled, setEnabled] = useState(settings.enabled);
   const [cameras, setCameras] = useState(settings.cameras);
+  const [cameraStatuses, setCameraStatuses] = useState<Array<{ cameraNumber: number; connected: boolean }>>([]);
+  const [connectResult, setConnectResult] = useState<Record<number, string>>({});
+
+  // Odświeżaj statusy kamer
+  useEffect(() => {
+    const refresh = () => {
+      window.nextime.ptzGetStatus().then(setCameraStatuses).catch(() => {});
+    };
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSave = () => {
     onSave({ enabled, cameras });
@@ -517,15 +717,43 @@ function PtzTab({ settings, onSave }: { settings: PtzSettings; onSave: (v: Parti
     setCameras(cameras.filter((_, i) => i !== index));
   };
 
-  const updateCamera = (index: number, field: string, value: string | number) => {
+  type CameraField = 'ip' | 'port' | 'number' | 'protocol' | 'serialPath' | 'serialBaudRate' | 'ndiSourceName' | 'onvifProfileToken' | 'onvifUsername' | 'onvifPassword';
+
+  const updateCamera = (index: number, field: CameraField, value: string | number) => {
     const updated = [...cameras];
     const cam = { ...updated[index]! };
     if (field === 'ip') cam.ip = value as string;
     else if (field === 'port') cam.port = value as number;
     else if (field === 'number') cam.number = value as number;
+    else if (field === 'protocol') cam.protocol = value as PtzSettings['cameras'][0]['protocol'];
+    else if (field === 'serialPath') cam.serialPath = value as string;
+    else if (field === 'serialBaudRate') cam.serialBaudRate = value as number;
+    else if (field === 'ndiSourceName') cam.ndiSourceName = value as string;
+    else if (field === 'onvifProfileToken') cam.onvifProfileToken = value as string;
+    else if (field === 'onvifUsername') cam.onvifUsername = value as string;
+    else if (field === 'onvifPassword') cam.onvifPassword = value as string;
     updated[index] = cam;
     setCameras(updated);
   };
+
+  const handleConnect = async (cameraNumber: number) => {
+    // Najpierw zapisz aktualne ustawienia
+    await window.nextime.updateSettings('ptz', { enabled, cameras });
+    const result = await window.nextime.ptzConnect(cameraNumber);
+    setConnectResult(prev => ({ ...prev, [cameraNumber]: result.ok ? 'Połączono' : `Błąd: ${result.error ?? ''}` }));
+  };
+
+  const handleDisconnect = async (cameraNumber: number) => {
+    await window.nextime.ptzDisconnect(cameraNumber);
+    setConnectResult(prev => ({ ...prev, [cameraNumber]: 'Rozłączono' }));
+  };
+
+  const handleTestPreset = async (cameraNumber: number) => {
+    const result = await window.nextime.ptzRecallPreset(cameraNumber, 1);
+    setConnectResult(prev => ({ ...prev, [cameraNumber]: result.ok ? 'Preset 1 OK' : `Błąd: ${result.error ?? ''}` }));
+  };
+
+  const getCamStatus = (num: number) => cameraStatuses.find(s => s.cameraNumber === num);
 
   return (
     <div>
@@ -546,35 +774,126 @@ function PtzTab({ settings, onSave }: { settings: PtzSettings; onSave: (v: Parti
         {cameras.length === 0 ? (
           <p className="text-xs text-slate-500">Brak skonfigurowanych kamer PTZ.</p>
         ) : (
-          <div className="space-y-2">
-            {cameras.map((cam, i) => (
-              <div key={i} className="flex items-center gap-2 bg-slate-700/50 rounded px-3 py-2">
-                <span className="text-xs text-slate-500 w-8">#{cam.number}</span>
-                <input
-                  type="text"
-                  value={cam.ip}
-                  onChange={e => updateCamera(i, 'ip', e.target.value)}
-                  placeholder="IP kamery"
-                  className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-                <input
-                  type="number"
-                  value={cam.port}
-                  onChange={e => updateCamera(i, 'port', Number(e.target.value))}
-                  min={1}
-                  max={65535}
-                  className="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                />
-                <span className="text-xs text-slate-500">VISCA</span>
-                <button
-                  onClick={() => removeCamera(i)}
-                  className="text-red-400 hover:text-red-300 text-xs px-1"
-                  title="Usuń kamerę"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {cameras.map((cam, i) => {
+              const status = getCamStatus(cam.number);
+              const statusMsg = connectResult[cam.number];
+              return (
+                <div key={i} className="bg-slate-700/50 rounded px-3 py-2 space-y-2">
+                  {/* Wiersz 1: numer, protokół, status, usuń */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 w-8">#{cam.number}</span>
+                    <select
+                      value={cam.protocol}
+                      onChange={e => updateCamera(i, 'protocol', e.target.value)}
+                      className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="visca_ip">VISCA IP</option>
+                      <option value="visca_serial">VISCA Serial</option>
+                      <option value="onvif">ONVIF</option>
+                      <option value="ndi">NDI</option>
+                    </select>
+                    <span className={`w-2 h-2 rounded-full ${status?.connected ? 'bg-green-400' : 'bg-red-400'}`} title={status?.connected ? 'Połączono' : 'Rozłączono'} />
+                    <div className="flex-1" />
+                    <button
+                      onClick={() => removeCamera(i)}
+                      className="text-red-400 hover:text-red-300 text-xs px-1"
+                      title="Usuń kamerę"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Wiersz 2: konfiguracja zależna od protokołu */}
+                  {(cam.protocol === 'visca_ip' || cam.protocol === 'onvif' || cam.protocol === 'ndi') && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={cam.ip}
+                        onChange={e => updateCamera(i, 'ip', e.target.value)}
+                        placeholder="IP kamery"
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      />
+                      <input
+                        type="number"
+                        value={cam.port}
+                        onChange={e => updateCamera(i, 'port', Number(e.target.value))}
+                        min={1}
+                        max={65535}
+                        className="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+
+                  {cam.protocol === 'visca_serial' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={cam.serialPath ?? ''}
+                        onChange={e => updateCamera(i, 'serialPath', e.target.value)}
+                        placeholder="Port serial (np. COM3)"
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      />
+                      <select
+                        value={cam.serialBaudRate ?? 9600}
+                        onChange={e => updateCamera(i, 'serialBaudRate', Number(e.target.value))}
+                        className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      >
+                        {[9600, 19200, 38400].map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {cam.protocol === 'onvif' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={cam.onvifUsername ?? ''}
+                        onChange={e => updateCamera(i, 'onvifUsername', e.target.value)}
+                        placeholder="ONVIF login"
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      />
+                      <input
+                        type="password"
+                        value={cam.onvifPassword ?? ''}
+                        onChange={e => updateCamera(i, 'onvifPassword', e.target.value)}
+                        placeholder="Hasło"
+                        className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Wiersz 3: przyciski */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleConnect(cam.number)}
+                      className="px-2 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded transition-colors"
+                    >
+                      Połącz
+                    </button>
+                    <button
+                      onClick={() => handleDisconnect(cam.number)}
+                      className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded transition-colors"
+                    >
+                      Rozłącz
+                    </button>
+                    <button
+                      onClick={() => handleTestPreset(cam.number)}
+                      className="px-2 py-1 bg-slate-600 hover:bg-slate-500 text-slate-200 text-xs rounded transition-colors"
+                    >
+                      Test Preset 1
+                    </button>
+                    {statusMsg && (
+                      <span className={`text-xs ${statusMsg.startsWith('Błąd') ? 'text-red-400' : 'text-green-400'}`}>
+                        {statusMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

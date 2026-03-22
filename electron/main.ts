@@ -703,7 +703,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle('nextime:getLtcStatus', () => {
     return senderManager?.ltc.getStatus() ?? {
       source: 'internal', connected: false,
-      lastTcFrames: null, lastReceivedAt: null,
+      lastTcFrames: null, lastTcFormatted: null,
+      lastReceivedAt: null, midiAvailable: false,
     };
   });
 
@@ -720,6 +721,28 @@ function registerIpcHandlers(): void {
     } else {
       senderManager?.ltc.disconnect();
     }
+  });
+
+  // ── LTC MTC (Faza 22) ────────────────────────────────────────
+
+  ipcMain.handle('nextime:ltcListMtcPorts', () => {
+    if (!senderManager) return [];
+    return senderManager.ltc.listMtcPorts();
+  });
+
+  ipcMain.handle('nextime:ltcConnectMtc', (_event, portIndex: number) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.ltc.connectMtc(portIndex);
+  });
+
+  ipcMain.handle('nextime:ltcDisconnectMtc', () => {
+    if (!senderManager) return;
+    senderManager.ltc.disconnectMtc();
+  });
+
+  ipcMain.handle('nextime:ltcIsMidiAvailable', () => {
+    if (!senderManager) return false;
+    return senderManager.ltc.isMidiAvailable();
   });
 
   // ── CRUD TextVariable (Faza 11) ──────────────────────────────
@@ -1057,6 +1080,61 @@ function registerIpcHandlers(): void {
   ipcMain.handle('nextime:midiIsAvailable', () => {
     if (!senderManager) return false;
     return senderManager.midi.isMidiAvailable();
+  });
+
+  // ── GPI Sender (Faza 22) ────────────────────────────────────
+
+  ipcMain.handle('nextime:gpiListPorts', async () => {
+    if (!senderManager) return [];
+    return senderManager.gpi.listPorts();
+  });
+
+  ipcMain.handle('nextime:gpiOpenPort', (_event, portPath: string, baudRate: number) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.gpi.openPort(portPath, baudRate);
+  });
+
+  ipcMain.handle('nextime:gpiClosePort', () => {
+    if (!senderManager) return;
+    senderManager.gpi.closePort();
+  });
+
+  ipcMain.handle('nextime:gpiTestSend', () => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.gpi.testSend();
+  });
+
+  ipcMain.handle('nextime:gpiIsAvailable', () => {
+    if (!senderManager) return false;
+    return senderManager.gpi.isSerialAvailable();
+  });
+
+  // ── PTZ Sender (Faza 22) ──────────────────────────────────
+
+  ipcMain.handle('nextime:ptzConnect', async (_event, cameraNumber: number) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    return senderManager.ptz.connectCamera(cameraNumber);
+  });
+
+  ipcMain.handle('nextime:ptzDisconnect', async (_event, cameraNumber: number) => {
+    if (!senderManager) return;
+    await senderManager.ptz.disconnectCamera(cameraNumber);
+  });
+
+  ipcMain.handle('nextime:ptzRecallPreset', async (_event, cameraNumber: number, presetNr: number) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    await senderManager.ptz.recallPreset(cameraNumber, presetNr);
+    return { ok: true };
+  });
+
+  ipcMain.handle('nextime:ptzGetStatus', () => {
+    if (!senderManager) return [];
+    return senderManager.ptz.getAllCameraStatuses();
+  });
+
+  ipcMain.handle('nextime:ptzListSerialPorts', async () => {
+    if (!senderManager) return [];
+    return senderManager.ptz.listSerialPorts();
   });
 }
 

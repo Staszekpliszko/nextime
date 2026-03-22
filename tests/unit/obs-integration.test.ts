@@ -42,6 +42,8 @@ describe('OBS Settings Integration', () => {
     const mockRepo = {
       getAll: () => ({}),
       get: () => undefined,
+      getRow: () => undefined,
+      getByPrefix: () => ({}),
       set: vi.fn(),
       setMany: vi.fn(),
       delete: vi.fn(),
@@ -65,6 +67,8 @@ describe('OBS Settings Integration', () => {
     const mockRepo = {
       getAll: () => ({}),
       get: () => undefined,
+      getRow: () => undefined,
+      getByPrefix: () => ({}),
       set: vi.fn(),
       setMany: vi.fn(),
       delete: vi.fn(),
@@ -91,6 +95,8 @@ describe('OBS Settings Integration', () => {
     const mockRepo = {
       getAll: () => ({}),
       get: () => undefined,
+      getRow: () => undefined,
+      getByPrefix: () => ({}),
       set: vi.fn(),
       setMany: vi.fn(),
       delete: vi.fn(),

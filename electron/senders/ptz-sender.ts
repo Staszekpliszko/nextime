@@ -4,6 +4,7 @@ import { ViscaIpDriver } from './ptz-drivers/visca-ip-driver';
 import { ViscaSerialDriver } from './ptz-drivers/visca-serial-driver';
 import { OnvifDriver } from './ptz-drivers/onvif-driver';
 import { NdiPtzDriver } from './ptz-drivers/ndi-ptz-driver';
+import { PanasonicHttpDriver } from './ptz-drivers/panasonic-http-driver';
 
 // ── Typy ────────────────────────────────────────────────
 
@@ -127,6 +128,13 @@ export class PtzSender extends EventEmitter {
 
       case 'ndi':
         return new NdiPtzDriver({
+          ip: cam.ip,
+          port: cam.port || 80,
+          timeout: 3000,
+        });
+
+      case 'panasonic_http':
+        return new PanasonicHttpDriver({
           ip: cam.ip,
           port: cam.port || 80,
           timeout: 3000,

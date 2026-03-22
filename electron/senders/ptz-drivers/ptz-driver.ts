@@ -11,7 +11,7 @@ export interface PtzDriverStatus {
   lastError?: string;
 }
 
-export type PtzProtocol = 'visca_ip' | 'visca_serial' | 'pelco_d' | 'onvif' | 'ndi';
+export type PtzProtocol = 'visca_ip' | 'visca_serial' | 'pelco_d' | 'onvif' | 'ndi' | 'panasonic_http';
 
 export interface PtzDriver {
   /** Nazwa protokołu */

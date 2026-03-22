@@ -43,7 +43,7 @@ export interface PtzSettings {
     number: number;
     ip: string;
     port: number;
-    protocol: 'visca_ip' | 'visca_serial' | 'onvif' | 'ndi';
+    protocol: 'visca_ip' | 'visca_serial' | 'onvif' | 'ndi' | 'panasonic_http';
     serialPath?: string;
     serialBaudRate?: number;
     ndiSourceName?: string;

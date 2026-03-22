@@ -1546,11 +1546,19 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 32 — Panasonic PTZ HTTP Driver [PLANOWANA]
+## Faza 32 — Panasonic PTZ HTTP Driver [UKOŃCZONA]
 
-- [ ] `panasonic-http-driver.ts` — recallPreset, panTilt, stop (AW-HE130, AW-UE150, AW-UE100)
-- [ ] Dodać 'panasonic_http' do PtzProtocol i createDriver()
-- [ ] Testy: ~12
+- [x] `electron/senders/ptz-drivers/panasonic-http-driver.ts` — NOWY: PanasonicHttpDriver z CGI API (recallPreset #R{nn}, panTilt #PTS{pptt}, stop, auto-detect QID)
+- [x] `electron/senders/ptz-drivers/ptz-driver.ts` — dodano 'panasonic_http' do PtzProtocol union type
+- [x] `electron/senders/ptz-drivers/index.ts` — eksport PanasonicHttpDriver i PanasonicHttpConfig
+- [x] `electron/senders/ptz-sender.ts` — case 'panasonic_http' w createDriver()
+- [x] `electron/settings-manager.ts` — 'panasonic_http' w PtzSettings.protocol union
+- [x] `src/components/SettingsPanel/SettingsPanel.tsx` — opcja "Panasonic HTTP (AW-HE/AW-UE)" w dropdown PTZ + pola IP/port
+- [x] `tests/unit/panasonic-ptz.test.ts` — NOWY: 14 testów (driver + integracja PtzSender)
+
+- [x] `tests/unit/obs-integration.test.ts` — FIX: dodano brakujące metody getRow/getByPrefix w mockRepo (3 miejsca)
+
+**Statystyki Fazy 32:** 911 testów (897 + 14 nowych), 8 plików nowych/zmodyfikowanych
 
 ---
 

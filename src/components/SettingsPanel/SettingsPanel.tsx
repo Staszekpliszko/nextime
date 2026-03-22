@@ -816,7 +816,8 @@ function PtzTab({ settings, onSave }: { settings: PtzSettings; onSave: (v: Parti
                       <option value="visca_ip">VISCA IP</option>
                       <option value="visca_serial">VISCA Serial</option>
                       <option value="onvif">ONVIF</option>
-                      <option value="ndi">NDI</option>
+                      <option value="ndi">NDI HTTP (PTZOptics)</option>
+                      <option value="panasonic_http">Panasonic HTTP (AW-HE/AW-UE)</option>
                     </select>
                     <span className={`w-2 h-2 rounded-full ${status?.connected ? 'bg-green-400' : 'bg-red-400'}`} title={status?.connected ? 'Połączono' : 'Rozłączono'} />
                     <div className="flex-1" />
@@ -830,7 +831,7 @@ function PtzTab({ settings, onSave }: { settings: PtzSettings; onSave: (v: Parti
                   </div>
 
                   {/* Wiersz 2: konfiguracja zależna od protokołu */}
-                  {(cam.protocol === 'visca_ip' || cam.protocol === 'onvif' || cam.protocol === 'ndi') && (
+                  {(cam.protocol === 'visca_ip' || cam.protocol === 'onvif' || cam.protocol === 'ndi' || cam.protocol === 'panasonic_http') && (
                     <div className="flex items-center gap-2">
                       <input
                         type="text"

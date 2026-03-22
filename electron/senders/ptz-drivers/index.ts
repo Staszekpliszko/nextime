@@ -7,6 +7,8 @@ export { OnvifDriver } from './onvif-driver';
 export type { OnvifConfig } from './onvif-driver';
 export { NdiPtzDriver } from './ndi-ptz-driver';
 export type { NdiPtzConfig } from './ndi-ptz-driver';
+export { PanasonicHttpDriver } from './panasonic-http-driver';
+export type { PanasonicHttpConfig } from './panasonic-http-driver';
 // NDI PTZ: używa HTTP CGI API (PTZOptics/BirdDog) — nie wymaga grandiose
 export {
   buildRecallPresetCmd,

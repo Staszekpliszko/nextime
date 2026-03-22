@@ -13,6 +13,7 @@ import type { CueGroup, CreateCueGroupInput, UpdateCueGroupInput } from '../../e
 import type { LtcReaderStatus } from '../../electron/senders/ltc-reader';
 import type { CameraPreset, CreateCameraPresetInput, UpdateCameraPresetInput } from '../../electron/db/repositories/camera-preset.repo';
 import type { MediaFile, CreateMediaFileInput } from '../../electron/db/repositories/media-file.repo';
+import type { MediaProbeResult } from '../../electron/media/ffprobe-utils';
 import type { OutputConfig, CreateOutputConfigInput, UpdateOutputConfigInput } from '../../electron/db/repositories/output-config.repo';
 import type { Column, CreateColumnInput, UpdateColumnInput, ColumnVisibility } from '../../electron/db/repositories/column.repo';
 import type { Cell } from '../../electron/db/repositories/cell.repo';
@@ -110,6 +111,12 @@ export interface NextimeApi {
   createMediaFile(input: CreateMediaFileInput): Promise<MediaFile>;
   deleteMediaFile(id: string): Promise<boolean>;
   getMediaStatus(): Promise<{ playing: boolean; currentFile: string | null; volume: number }>;
+
+  // ── Media Infrastructure (Faza 23) ───────────────────
+  probeMediaFile(filePath: string): Promise<MediaProbeResult | null>;
+  selectMediaFile(): Promise<{ filePath: string; fileName: string } | null>;
+  generateWaveform(filePath: string, samples?: number): Promise<number[]>;
+  updateMediaFileDuration(id: string, durationFrames: number, waveformData?: number[]): Promise<MediaFile | undefined>;
 
   // ── LTC (Faza 10) ──────────────────────────────────────
   getLtcStatus(): Promise<LtcReaderStatus>;

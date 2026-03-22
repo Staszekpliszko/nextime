@@ -21,6 +21,7 @@ asarUnpack:
   - "**/node_modules/bindings/**"
   - "**/node_modules/file-uri-to-path/**"
   - "**/node_modules/prebuild-install/**"
+  - "**/node_modules/@ffprobe-installer/**"
 
 # schema.sql kopiowany jako extraResource (dostępny przez process.resourcesPath)
 extraResources:

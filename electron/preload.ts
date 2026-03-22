@@ -198,6 +198,22 @@ contextBridge.exposeInMainWorld('nextime', {
   getMediaStatus: (): Promise<unknown> =>
     ipcRenderer.invoke('nextime:getMediaStatus'),
 
+  /** Analizuje plik media za pomocą ffprobe (Faza 23) */
+  probeMediaFile: (filePath: string): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:probeMediaFile', filePath),
+
+  /** Otwiera dialog wyboru pliku media (Faza 23) */
+  selectMediaFile: (): Promise<{ filePath: string; fileName: string } | null> =>
+    ipcRenderer.invoke('nextime:selectMediaFile'),
+
+  /** Generuje waveform dla pliku audio (Faza 23) */
+  generateWaveform: (filePath: string, samples?: number): Promise<number[]> =>
+    ipcRenderer.invoke('nextime:generateWaveform', filePath, samples),
+
+  /** Aktualizuje duration i waveform pliku media w DB (Faza 23) */
+  updateMediaFileDuration: (id: string, durationFrames: number, waveformData?: number[]): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:updateMediaFileDuration', id, durationFrames, waveformData),
+
   // ── LTC (Faza 10) ────────────────────────────────────────
   /** Pobiera status LTC readera */
   getLtcStatus: (): Promise<unknown> =>

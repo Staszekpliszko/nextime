@@ -3,7 +3,7 @@
 ## OPIS WORKFLOW
 
 Pracujemy w systemie fazowym. Każda faza to osobna sesja w Claude Code. Piszesz w języku polskim!
-Piszesz prompt do pierwszej fazy wg opisu: TODO.md i plan.md - nie zapisujesz go tylko wyswietlasz w konsoli. Do kazdej z faz to samo!
+Piszesz prompt do pierwszej fazy wg opisu: TODO.md i plan-fazy-23-36.md - nie zapisujesz go tylko wyswietlasz w konsoli. Do kazdej z faz to samo!
 Ja ten prompt kopiuję do nowej sesji. Uruchamiam pisanie kodu. TY piszesz kod wg bardzo dokładnych wytycznych, analizujesz bezpieczeństwo kodu, nie zostawiasz nie zamkniętych furtek - czyli zawsze dokańczasz kod. Po napisaniu kodu robisz testy wewnętrzne, podsumowanie z opisem dokładnym co zmieniłeś, opis co i jak można przetestować wizualnie. Zapisujesz/odhaczasz to co w danej fazie zrobiłeś i pytasz czy możesz napisać prompt do kolejnej fazy. Prompt piszesz w konsoli - nie zapisujesz na dysku!
 Dokładnie analizujesz pliki:
 
@@ -11,11 +11,11 @@ Dokładnie analizujesz pliki:
 1. User kopiuje prompt do nowej sesji
 2. Prompt zawiera:
    - Numer fazy
-   - Linki do plików TODO.md i plan.md oraz dzialania.md
+   - Linki do plików TODO.md i plan-fazy-23-36.md oraz dzialania.md
    - Opis co ma być wykonane w tej fazie
 
 ### W trakcie fazy:
-1. Claude czyta TODO.md i plan.md
+1. Claude czyta TODO.md i plan-fazy-23-36.md
 2. Claude implementuje zadania z danej fazy
 3. Claude NIE koduje nic z kolejnych faz
 4. Claude pisze kod bezpiecznie i kompletnie

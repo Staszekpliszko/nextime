@@ -359,6 +359,7 @@ export function RundownTable({ cues, sendCommand, activeRundownId, onEditCue }: 
                 sensors={columnSensors}
                 collisionDetection={closestCenter}
                 onDragEnd={handleColumnDragEnd}
+                accessibility={{ container: document.body }}
               >
                 <SortableContext items={visibleColumns.map(c => c.id)} strategy={horizontalListSortingStrategy}>
                   {visibleColumns.map(col => (

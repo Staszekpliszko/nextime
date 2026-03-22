@@ -1,14 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
+import { useToastStore } from '@/components/Toast/Toast';
 import type { MediaFile } from '../../../electron/db/repositories/media-file.repo';
 
 interface MediaLibraryPanelProps {
   onClose: () => void;
 }
 
+/** Konwertuje duration_frames na czytelny format MM:SS (przy założeniu fps z probe) */
+function formatDuration(durationFrames: number, fps: number = 25): string {
+  if (durationFrames <= 0 || fps <= 0) return '—';
+  const totalSeconds = Math.round(durationFrames / fps);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** Próbuje automatycznie wykryć typ media na podstawie rozszerzenia */
+function detectMediaType(fileName: string): 'audio' | 'video' {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus'];
+  return audioExts.includes(ext) ? 'audio' : 'video';
+}
+
 export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
   const activeActId = usePlaybackStore(s => s.activeActId);
   const [files, setFiles] = useState<MediaFile[]>([]);
+  const [probing, setProbing] = useState(false);
   const [mediaStatus, setMediaStatus] = useState<{ playing: boolean; currentFile: string | null; volume: number }>({
     playing: false, currentFile: null, volume: 100,
   });
@@ -35,32 +53,67 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
 
   useEffect(() => { loadFiles(); loadStatus(); }, [loadFiles, loadStatus]);
 
-  // Dodaj plik (przez input file dialog — w Electron preload nie mamy dialog, więc używamy ręcznego input)
+  // Dodaj plik przez Electron dialog + automatyczny probe ffprobe
   const handleAddFile = useCallback(async () => {
     if (!activeActId) return;
 
-    // Używamy standardowego file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*,video/*';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
+    try {
+      // Otwórz natywny dialog Electron
+      const selected = await window.nextime.selectMediaFile();
+      if (!selected) return; // anulowano
 
-      try {
-        await window.nextime.createMediaFile({
-          act_id: activeActId,
-          file_name: file.name,
-          file_path: file.path || file.name, // Electron udostępnia file.path
-          media_type: file.type.startsWith('video') ? 'video' : 'audio',
-          duration_frames: 0, // Placeholder — prawdziwa detekcja wymaga ffprobe
-        });
-        await loadFiles();
-      } catch (err) {
-        console.error('[MediaLibraryPanel] Błąd dodawania:', err);
+      const { filePath, fileName } = selected;
+      const mediaType = detectMediaType(fileName);
+
+      setProbing(true);
+
+      // Utwórz rekord w DB (na razie z duration 0)
+      const created = await window.nextime.createMediaFile({
+        act_id: activeActId,
+        file_name: fileName,
+        file_path: filePath,
+        media_type: mediaType,
+        duration_frames: 0,
+      });
+
+      // Automatyczny probe — wykryj duration i waveform
+      const probeResult = await window.nextime.probeMediaFile(filePath);
+      if (probeResult && created) {
+        // Wykryj typ na podstawie probe (nadpisz jeśli się różni)
+        const detectedType: 'audio' | 'video' = probeResult.hasVideo ? 'video' : 'audio';
+        if (detectedType !== mediaType) {
+          // Aktualizacja typu nie jest krytyczna — zostawiamy oryginalny
+          console.log(`[MediaLibraryPanel] Wykryto typ: ${detectedType} (oryginalny: ${mediaType})`);
+        }
+
+        // Generuj waveform (tylko jeśli jest audio)
+        let waveformData: number[] | undefined;
+        if (probeResult.hasAudio) {
+          waveformData = await window.nextime.generateWaveform(filePath, 200);
+          if (waveformData.length === 0) waveformData = undefined;
+        }
+
+        // Aktualizuj duration i waveform w DB
+        await window.nextime.updateMediaFileDuration(
+          created.id,
+          probeResult.durationFrames,
+          waveformData,
+        );
       }
-    };
-    input.click();
+
+      setProbing(false);
+      await loadFiles();
+
+      // Toast z potwierdzeniem
+      const durationInfo = probeResult
+        ? ` (${formatDuration(probeResult.durationFrames, probeResult.fps || 25)})`
+        : '';
+      useToastStore.getState().addToast('success', `Dodano: ${fileName}${durationInfo}`);
+    } catch (err) {
+      setProbing(false);
+      console.error('[MediaLibraryPanel] Błąd dodawania:', err);
+      useToastStore.getState().addToast('error', 'Błąd dodawania pliku media');
+    }
   }, [activeActId, loadFiles]);
 
   // Usuń plik
@@ -69,8 +122,10 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
     try {
       await window.nextime.deleteMediaFile(id);
       await loadFiles();
+      useToastStore.getState().addToast('info', 'Plik media usunięty');
     } catch (err) {
       console.error('[MediaLibraryPanel] Błąd usuwania:', err);
+      useToastStore.getState().addToast('error', 'Błąd usuwania pliku media');
     }
   }, [loadFiles]);
 
@@ -82,7 +137,7 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-          <h2 className="text-sm font-bold text-slate-200">Media Library</h2>
+          <h2 className="text-sm font-bold text-slate-200">Biblioteka mediów</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-lg leading-none">&times;</button>
         </div>
 
@@ -90,6 +145,13 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
         {mediaStatus.playing && (
           <div className="px-4 py-2 bg-emerald-900/30 border-b border-emerald-800/50 text-xs text-emerald-400">
             Odtwarzanie: {mediaStatus.currentFile ?? '—'} | Vol: {mediaStatus.volume}%
+          </div>
+        )}
+
+        {/* Wskaźnik analizy ffprobe */}
+        {probing && (
+          <div className="px-4 py-2 bg-blue-900/30 border-b border-blue-800/50 text-xs text-blue-400">
+            Analizuję plik (ffprobe)...
           </div>
         )}
 
@@ -121,6 +183,11 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
                 <div className="text-xs text-slate-500 truncate">{file.file_path}</div>
               </div>
 
+              {/* Duration */}
+              <span className="text-xs text-slate-400 font-mono shrink-0">
+                {formatDuration(file.duration_frames)}
+              </span>
+
               {/* Typ badge */}
               <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded uppercase ${
                 file.media_type === 'audio' ? 'bg-blue-600/20 text-blue-400' : 'bg-purple-600/20 text-purple-400'
@@ -143,10 +210,10 @@ export function MediaLibraryPanel({ onClose }: MediaLibraryPanelProps) {
         <div className="px-4 py-3 border-t border-slate-700 flex justify-between">
           <button
             onClick={handleAddFile}
-            disabled={!activeActId}
+            disabled={!activeActId || probing}
             className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            + Dodaj plik
+            {probing ? 'Analizuję...' : '+ Dodaj plik'}
           </button>
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
             Zamknij

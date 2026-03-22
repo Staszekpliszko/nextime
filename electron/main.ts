@@ -14,6 +14,7 @@ import { WindowManager } from './window-manager';
 import { resolvePreloadPath } from './paths';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
+import { probeMediaFile, generateWaveform } from './media';
 import {
   UndoManager,
   createCueCommand, deleteCueCommand, updateCueCommand, reorderCuesCommand,
@@ -696,6 +697,38 @@ function registerIpcHandlers(): void {
   ipcMain.handle('nextime:getMediaStatus', () => {
     if (!senderManager) return { playing: false, currentFile: null, volume: 100 };
     return senderManager.media.getStatus();
+  });
+
+  // ── Media Infrastructure (Faza 23) ─────────────────────────────
+
+  ipcMain.handle('nextime:probeMediaFile', async (_event, filePath: string) => {
+    return probeMediaFile(filePath);
+  });
+
+  ipcMain.handle('nextime:selectMediaFile', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Wybierz plik media',
+      filters: [
+        { name: 'Media', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv'] },
+        { name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'] },
+        { name: 'Video', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv'] },
+        { name: 'Wszystkie pliki', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const filePath = result.filePaths[0]!;
+    const fileName = path.basename(filePath);
+    return { filePath, fileName };
+  });
+
+  ipcMain.handle('nextime:generateWaveform', async (_event, filePath: string, samples?: number) => {
+    return generateWaveform(filePath, samples);
+  });
+
+  ipcMain.handle('nextime:updateMediaFileDuration', (_event, id: string, durationFrames: number, waveformData?: number[]) => {
+    return mediaFileRepo.updateDurationAndWaveform(id, durationFrames, waveformData);
   });
 
   // ── LTC (Faza 10) ─────────────────────────────────────────────

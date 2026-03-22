@@ -70,6 +70,19 @@ export function createMediaFileRepo(db: Database.Database) {
       return rows.map(rowToMediaFile);
     },
 
+    /** Aktualizuje duration i waveform pliku media (po ffprobe) */
+    updateDurationAndWaveform(id: string, durationFrames: number, waveformData?: number[]): MediaFile | undefined {
+      const result = db.prepare(`
+        UPDATE media_files SET duration_frames = ?, waveform_data = ? WHERE id = ?
+      `).run(
+        durationFrames,
+        waveformData ? toJson(waveformData) : null,
+        id,
+      );
+      if (result.changes === 0) return undefined;
+      return this.findById(id);
+    },
+
     delete(id: string): boolean {
       const result = db.prepare('DELETE FROM media_files WHERE id = ?').run(id);
       return result.changes > 0;

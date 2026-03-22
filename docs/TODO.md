@@ -1391,3 +1391,196 @@ Faza 22 (GPI + LTC + PTZ)   ← niszowe integracje
 | **SUMA** | **~146** | |
 
 Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja hardware, production build, E2E coverage.
+
+---
+
+## Faza 23 — Media Infrastructure: ffprobe + auto-detect duration + waveform [UKOŃCZONA]
+
+- [x] `electron/media/ffprobe-utils.ts` — probeMediaFile(), generateWaveform(), findFfprobePath()
+- [x] `electron/media/index.ts` — re-eksport modułów media
+- [x] `electron/db/repositories/media-file.repo.ts` — updateDurationAndWaveform()
+- [x] IPC: nextime:probeMediaFile, nextime:selectMediaFile, nextime:generateWaveform, nextime:updateMediaFileDuration
+- [x] `electron/preload.ts` — probeMediaFile, selectMediaFile, generateWaveform, updateMediaFileDuration
+- [x] `src/types/electron.d.ts` — typy NextimeApi rozszerzone o Fazę 23
+- [x] `src/components/MediaLibraryPanel/MediaLibraryPanel.tsx` — Electron dialog, auto-probe, duration display
+- [x] Testy: 34 nowe (744 łącznie)
+
+**Statystyki Fazy 23:** 35 nowych testów, 745 łącznie. Deps: fluent-ffmpeg, @types/fluent-ffmpeg, @ffprobe-installer/ffprobe
+
+---
+
+## Faza 24 — Prawdziwy Media Playback (audio/video) [PLANOWANA]
+
+- [ ] `src/components/MediaPlayer/MediaPlayer.tsx` — ukryty `<audio>`/`<video>`, IPC play/stop/volume/seek
+- [ ] `src/components/MediaPlayer/MediaStatusBar.tsx` — progress bar w TransportBar
+- [ ] `electron/media/media-ipc.ts` — IPC handlery media
+- [ ] PRZEBUDOWA `electron/senders/media-sender.ts` — IPC zamiast console.log
+- [ ] Testy: ~25
+
+---
+
+## Faza 25 — OBS WebSocket Driver [PLANOWANA]
+
+- [ ] `electron/senders/obs-sender.ts` — ObsSender: connect, setScene, setPreviewScene, triggerTransition, getSceneList, getStatus
+- [ ] Mapping camera_number → scena OBS (sceneMap)
+- [ ] Auto-reconnect, graceful fallback
+- [ ] Settings: sekcja obs w SettingsManager
+- [ ] Testy: ~20
+
+---
+
+## Faza 26 — vMix HTTP Driver [PLANOWANA]
+
+- [ ] `electron/senders/vmix-sender.ts` — VmixSender: cut/fade/merge/wipe/zoom/stinger, playMedia, getInputList, getStatus
+- [ ] `electron/senders/vmix-xml-parser.ts` — parsowanie XML stanu vMix
+- [ ] Polling stanu co 500ms
+- [ ] Settings: sekcja vmix w SettingsManager
+- [ ] Testy: ~18
+
+---
+
+## Faza 27 — Vision Cue Routing + Transition Types [PLANOWANA]
+
+- [ ] `electron/senders/vision-router.ts` — VisionRouter: targetSwitcher, centralny routing, transition_type + transition_duration_ms
+- [ ] Vision cue data rozszerzone o transition_type (Cut/Fade/Wipe/Zoom/Stinger...) i transition_duration_ms
+- [ ] Dropdown transition w TimelineCueDialog
+- [ ] Mapowanie transition na API ATEM/OBS/vMix, fallback → CUT
+- [ ] Testy: ~15
+
+---
+
+## Faza 28 — SettingsPanel: zakładki OBS i vMix [PLANOWANA]
+
+- [ ] `ObsSettingsTab.tsx` — IP, port, hasło, sceneMap, Połącz/Rozłącz, lista scen live
+- [ ] `VmixSettingsTab.tsx` — IP, port, lista inputów live
+- [ ] `SwitcherSelectField.tsx` — dropdown: ATEM/OBS/vMix/None
+- [ ] IPC: obsConnect, obsDisconnect, obsGetScenes, vmixConnect, vmixGetInputs
+- [ ] Testy: ~10
+
+---
+
+## Faza 29 — OBS/vMix Feedback → UI [PLANOWANA]
+
+- [ ] `SwitcherPanel.tsx` — zastępuje AtemPanel: PGM/PRV tally, lista inputów z kolorami
+- [ ] `useSwitcherStatus.ts` — hook polling co 200ms
+- [ ] WS broadcast: switcher:program-changed, switcher:preview-changed
+- [ ] ShotlistPanel — tally kolory (czerwony=PGM, zielony=PRV)
+- [ ] Testy: ~10
+
+---
+
+## Faza 30 — ATEM Macros, DSK, SuperSource [PLANOWANA]
+
+- [ ] `electron/senders/atem-fx-handler.ts` — handler vision_fx: macro → macroRun(), key_on → setDSK()
+- [ ] atem-sender.ts — runMacro(), setDownstreamKey(), setUpstreamKey()
+- [ ] PlaybackEngine — case 'vision_fx' → emit 'vision-fx-trigger'
+- [ ] Testy: ~15
+
+---
+
+## Faza 31 — OSC Custom Schemas [PLANOWANA]
+
+- [ ] `electron/osc-schemas/schema-loader.ts` — loader JSON schematów
+- [ ] `assets/osc-schemas/` — disguise, casparcg, qlab, ross, generic (.json)
+- [ ] `OscCueEditor.tsx` — dropdown urządzenie → komenda → argumenty
+- [ ] Testy: ~12
+
+---
+
+## Faza 32 — Panasonic PTZ HTTP Driver [PLANOWANA]
+
+- [ ] `panasonic-http-driver.ts` — recallPreset, panTilt, stop (AW-HE130, AW-UE150, AW-UE100)
+- [ ] Dodać 'panasonic_http' do PtzProtocol i createDriver()
+- [ ] Testy: ~12
+
+---
+
+## Faza 33 — Export PDF / Print [PLANOWANA]
+
+- [ ] `electron/pdf/rundown-pdf.ts` — tabela cue'ów, nagłówek, grupy, numeracja stron
+- [ ] `electron/pdf/timeline-pdf.ts` — shotlist z TC i kamerami
+- [ ] `ExportPdfDialog.tsx` — wybór kolumn, orientacja, rozmiar
+- [ ] Testy: ~15
+
+---
+
+## Faza 34 — Companion/StreamDeck Rozszerzone API [PLANOWANA]
+
+- [ ] 11 nowych HTTP endpointów: goto cue, state, cues list, step_next, take_shot, hold_toggle, step_toggle, ATEM cut/preview, PTZ preset, speed
+- [ ] `electron/http/companion-extended.ts`
+- [ ] Testy: ~15
+
+---
+
+## Faza 35 — Team Notes (zespołowe notatki) [PLANOWANA]
+
+- [ ] `team-note.repo.ts` — TeamNote CRUD (rundown_id, cue_id?, author_name, content, resolved)
+- [ ] `TeamNotesPanel.tsx` — panel boczny, filtr per cue, badge count
+- [ ] WS broadcast: team-notes:delta
+- [ ] Testy: ~12
+
+---
+
+## Faza 36 — Waveform Preview w Timeline [PLANOWANA]
+
+- [ ] `WaveformCanvas.tsx` — canvas polyline z playhead overlay
+- [ ] `MediaCueBlock.tsx` — blok media cue z waveform
+- [ ] Testy: ~8
+
+---
+
+## Faza 37 — Natywny StreamDeck (USB HID) [PLANOWANA]
+
+Bezpośrednia integracja ze StreamDeckiem przez USB — bez Companion, auto-detect modelu, konfigurowalne przyciski.
+Dwie opcje sterowania: 1) natywnie (ta faza), 2) przez Companion (Faza 34).
+
+**Deps npm:** `@elgato-stream-deck/node`, `sharp` (generowanie obrazów przycisków)
+
+- [ ] `electron/streamdeck/streamdeck-manager.ts` — StreamDeckManager: auto-detect, listDevices(), open(), close()
+  - Obsługiwane modele: Mini (6), MK.2 (15), XL (32), Plus (8+4 enc+LCD), Studio (16+2 enc), Neo (8+2+LCD), Pedal (3)
+  - Eventy: down, up, rotate (encodery), lcdShortPress/lcdSwipe (Plus)
+- [ ] `electron/streamdeck/streamdeck-button-renderer.ts` — generowanie obrazów przycisków z tekstem + ikoną + kolorem tła (sharp)
+- [ ] `electron/streamdeck/streamdeck-pages.ts` — system stron (pages) z przyciskami konfigurowalnymi per model
+- [ ] `electron/streamdeck/streamdeck-actions.ts` — mapowanie przycisk → akcja NEXTIME
+- [ ] Domyślne strony:
+  - **SHOW CONTROL:** Play, Pause, Next, Prev, Goto, Step Next, Take Shot, Hold, Step Mode, FTB
+  - **SHOTBOX:** CAM 1-8 PGM (czerwony=LIVE) + PVW (zielony=preview), CUT, AUTO, DSK, KEY, MACRO
+  - **INFO/TIMERY:** Current Cue (tekst), Next Cue, Remaining (countdown kolorowy), Elapsed, Over/Under, Timecode, Show Clock, Cue Count
+  - **AUDIO/MEDIA:** Media Play/Stop, Vol Up/Down, PTZ Preset 1-4
+  - **NAWIGACJA:** przełączanie stron
+- [ ] Feedback w real-time: tally (czerwony PGM / zielony PVW), countdown (biały→żółty→czerwony→migający), dynamiczny tekst
+- [ ] Zakładka "StreamDeck" w SettingsPanel:
+  - Auto-detect podłączonego modelu (nazwa, serial, przycisków)
+  - Wizualna mapa przycisków (grid wg modelu)
+  - Kliknięcie na przycisk → dropdown z listą funkcji
+  - Strony (pages) — dodawanie/usuwanie
+  - Brightness slider
+  - Przycisk "Resetuj do domyślnych"
+- [ ] IPC: nextime:streamdeckList, nextime:streamdeckConnect, nextime:streamdeckSetButton, nextime:streamdeckGetConfig
+- [ ] Preload + electron.d.ts — typy StreamDeck
+- [ ] Testy: ~20
+
+---
+
+## PODSUMOWANIE FAZ 23-37
+
+| Faza | Nazwa | Testy | Priorytet |
+|------|-------|-------|-----------|
+| 23 (ffprobe + duration) | ~20 | KRYTYCZNY |
+| 24 (Media Playback) | ~25 | KRYTYCZNY |
+| 25 (OBS WebSocket) | ~20 | WYSOKI |
+| 26 (vMix HTTP) | ~18 | WYSOKI |
+| 27 (Vision Routing) | ~15 | WYSOKI |
+| 28 (Settings OBS/vMix) | ~10 | ŚREDNI |
+| 29 (Feedback UI) | ~10 | ŚREDNI |
+| 30 (ATEM Macros/DSK) | ~15 | ŚREDNI |
+| 31 (OSC Schemas) | ~12 | ŚREDNI |
+| 32 (Panasonic PTZ) | ~12 | NISKI |
+| 33 (Export PDF) | ~15 | KRYTYCZNY |
+| 34 (Companion API) | ~15 | ŚREDNI |
+| 35 (Team Notes) | ~12 | NISKI |
+| 36 (Waveform) | ~8 | NISKI |
+| 37 (Natywny StreamDeck) | ~20 | WYSOKI |
+| **SUMA** | **~217** | |
+
+Po Fazie 37: **~927 testów** (710 + 217), pełna paryteta z CuePilot Pro + killer features (OBS/vMix/natywny StreamDeck).

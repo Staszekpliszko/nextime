@@ -165,6 +165,18 @@ export interface NextimeApi {
   exportRundown(rundownId: string): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }>;
   importRundown(): Promise<{ ok: boolean; rundownId?: string; error?: string; canceled?: boolean }>;
 
+  // ── Export PDF (Faza 33) ────────────────────────────────
+  exportRundownPdf(rundownId: string, options: {
+    orientation: 'portrait' | 'landscape';
+    pageSize: 'a4' | 'a3' | 'letter';
+    selectedColumnIds: string[];
+    includeGroups: boolean;
+  }): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }>;
+  exportTimelinePdf(actId: string, options: {
+    orientation: 'portrait' | 'landscape';
+    pageSize: 'a4' | 'a3' | 'letter';
+  }): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }>;
+
   // ── Undo / Redo (Faza 16) ──────────────────────────────
   undo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;
   redo(): Promise<{ ok: boolean; description: string; canUndo: boolean; canRedo: boolean }>;

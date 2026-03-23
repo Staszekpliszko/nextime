@@ -472,6 +472,15 @@ contextBridge.exposeInMainWorld('nextime', {
   gpiIsAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('nextime:gpiIsAvailable'),
 
+  // ── Export PDF (Faza 33) ──────────────────────────────────────
+  /** Eksportuje rundown do PDF (dialog zapisu) */
+  exportRundownPdf: (rundownId: string, options: unknown): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }> =>
+    ipcRenderer.invoke('nextime:exportRundownPdf', rundownId, options),
+
+  /** Eksportuje timeline/shotlist do PDF (dialog zapisu) */
+  exportTimelinePdf: (actId: string, options: unknown): Promise<{ ok: boolean; filePath?: string; error?: string; canceled?: boolean }> =>
+    ipcRenderer.invoke('nextime:exportTimelinePdf', actId, options),
+
   // ── OBS (Faza 25) ───────────────────────────────────────────
   /** Łączy z OBS WebSocket */
   obsConnect: (): Promise<{ ok: boolean; error?: string }> =>

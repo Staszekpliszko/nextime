@@ -43,6 +43,8 @@ import type { CreateCueGroupInput, UpdateCueGroupInput } from './db/repositories
 import type { CreateColumnInput, UpdateColumnInput } from './db/repositories/column.repo';
 import type { RundownChange } from './ws-protocol-types';
 import crypto from 'crypto';
+import { exportRundownPdf, exportTimelinePdf } from './pdf';
+import type { RundownPdfOptions, TimelinePdfOptions } from './pdf';
 
 // ── Globalne referencje (nie pozwól GC zamknąć okna) ─────────
 let mainWindow: BrowserWindow | null = null;
@@ -1242,6 +1244,101 @@ function registerIpcHandlers(): void {
   ipcMain.handle('nextime:ptzListSerialPorts', async () => {
     if (!senderManager) return [];
     return senderManager.ptz.listSerialPorts();
+  });
+
+  // ── Export PDF (Faza 33) ──────────────────────────────────────
+
+  ipcMain.handle('nextime:exportRundownPdf', async (_event, rundownId: string, options: RundownPdfOptions) => {
+    try {
+      const activeId = rundownId;
+      if (!activeId) return { ok: false, error: 'Brak aktywnego rundownu' };
+
+      const rundown = rundownRepo.findById(activeId);
+      if (!rundown) return { ok: false, error: 'Rundown nie znaleziony' };
+
+      const cues = cueRepo.findByRundown(activeId);
+      const columns = columnRepo.findByRundown(activeId);
+      const groups = cueGroupRepo.findByRundown(activeId);
+
+      // Pobierz komórki dla wszystkich cue'ów
+      const allCells: Array<{ cue_id: string; column_id: string; content_type: string; richtext?: unknown; dropdown_value?: string }> = [];
+      for (const cue of cues) {
+        const cells = cellRepo.findByCue(cue.id);
+        for (const cell of cells) {
+          allCells.push({
+            cue_id: cell.cue_id,
+            column_id: cell.column_id,
+            content_type: cell.content_type,
+            richtext: cell.richtext,
+            dropdown_value: cell.dropdown_value,
+          });
+        }
+      }
+
+      const pdfBuffer = exportRundownPdf(
+        { name: rundown.name, show_date: rundown.show_date, show_time: rundown.show_time, venue: rundown.venue },
+        cues.map(c => ({ id: c.id, title: c.title, subtitle: c.subtitle, duration_ms: c.duration_ms, status: c.status, sort_order: c.sort_order, group_id: c.group_id })),
+        columns.map(c => ({ id: c.id, name: c.name, sort_order: c.sort_order })),
+        allCells,
+        groups.map(g => ({ id: g.id, label: g.label, sort_order: g.sort_order, color: g.color })),
+        options,
+      );
+
+      // Dialog zapisu pliku
+      const defaultName = `${rundown.name.replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ _-]/g, '_')}_rundown.pdf`;
+      const result = await dialog.showSaveDialog({
+        title: 'Eksportuj rundown do PDF',
+        defaultPath: defaultName,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+
+      fs.writeFileSync(result.filePath, Buffer.from(pdfBuffer));
+      return { ok: true, filePath: result.filePath };
+    } catch (err) {
+      console.error('[PDF] Błąd eksportu rundownu:', err);
+      return { ok: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('nextime:exportTimelinePdf', async (_event, actId: string, options: TimelinePdfOptions) => {
+    try {
+      const act = actRepo.findById(actId);
+      if (!act) return { ok: false, error: 'Akt nie znaleziony' };
+
+      const tracks = trackRepo.findByAct(actId);
+      const timelineCues = timelineCueRepo.findByAct(actId);
+
+      // Pobierz camera presets z pierwszego projektu
+      const projects = projectRepo.findAll();
+      const cameraPresets = projects.length > 0
+        ? cameraPresetRepo.findByProject(projects[0]!.id)
+        : [];
+
+      const pdfBuffer = exportTimelinePdf(
+        { name: act.name, artist: act.artist, fps: act.fps, duration_frames: act.duration_frames },
+        tracks.map(t => ({ id: t.id, name: t.name, type: t.type })),
+        timelineCues.map(c => ({ id: c.id, track_id: c.track_id, type: c.type, tc_in_frames: c.tc_in_frames, tc_out_frames: c.tc_out_frames, data: c.data })),
+        cameraPresets.map(p => ({ camera_number: p.number, label: p.label, color: p.color })),
+        options,
+      );
+
+      const defaultName = `${act.name.replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ _-]/g, '_')}_shotlist.pdf`;
+      const result = await dialog.showSaveDialog({
+        title: 'Eksportuj shotlist do PDF',
+        defaultPath: defaultName,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+
+      fs.writeFileSync(result.filePath, Buffer.from(pdfBuffer));
+      return { ok: true, filePath: result.filePath };
+    } catch (err) {
+      console.error('[PDF] Błąd eksportu timeline:', err);
+      return { ok: false, error: String(err) };
+    }
   });
 }
 

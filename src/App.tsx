@@ -22,6 +22,7 @@ import { TextVariablePanel } from '@/components/TextVariablePanel/TextVariablePa
 import { ToastContainer, useToastStore } from '@/components/Toast/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp/ShortcutHelp';
 import { SettingsPanel } from '@/components/SettingsPanel/SettingsPanel';
+import { ExportPdfDialog } from '@/components/ExportPdfDialog/ExportPdfDialog';
 import type { TimelineCueSummary, TextVariableInfo, CueGroupInfo } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
 
@@ -83,6 +84,7 @@ export default function App() {
   const [showVariablePanel, setShowVariablePanel] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [showExportPdfDialog, setShowExportPdfDialog] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   // Faza 29: zunifikowany status switchera (zamiast atemConnected)
   const switcherStatus = useSwitcherStatus(1000);
@@ -655,6 +657,14 @@ export default function App() {
         >
           Zmienne
         </button>
+        {/* Faza 33: przycisk Eksportuj PDF */}
+        <button
+          onClick={() => setShowExportPdfDialog(true)}
+          className="px-3 py-1 rounded text-xs font-medium transition-colors bg-slate-700 text-slate-400 hover:bg-slate-600 border border-slate-600"
+          title="Eksportuj do PDF"
+        >
+          PDF
+        </button>
         {/* Faza 18: przycisk Ustawienia */}
         <button
           onClick={() => setShowSettingsPanel(true)}
@@ -809,6 +819,11 @@ export default function App() {
       {/* Faza 18: Settings Panel */}
       {showSettingsPanel && (
         <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+      )}
+
+      {/* Faza 33: Export PDF Dialog */}
+      {showExportPdfDialog && (
+        <ExportPdfDialog onClose={() => setShowExportPdfDialog(false)} />
       )}
 
       {/* Faza 24: Media Status Bar — widoczny gdy media jest odtwarzane */}

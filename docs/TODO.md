@@ -1562,12 +1562,20 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 33 — Export PDF / Print [PLANOWANA]
+## Faza 33 — Export PDF / Print [UKOŃCZONA]
 
-- [ ] `electron/pdf/rundown-pdf.ts` — tabela cue'ów, nagłówek, grupy, numeracja stron
-- [ ] `electron/pdf/timeline-pdf.ts` — shotlist z TC i kamerami
-- [ ] `ExportPdfDialog.tsx` — wybór kolumn, orientacja, rozmiar
-- [ ] Testy: ~15
+- [x] `electron/pdf/rundown-pdf.ts` — tabela cue'ów, nagłówek, grupy, numeracja stron, dynamiczne kolumny, richtext extraction
+- [x] `electron/pdf/timeline-pdf.ts` — shotlist z TC in/out, kamerami, filtrowanie vision cues
+- [x] `electron/pdf/index.ts` — re-eksport modułu PDF
+- [x] `src/components/ExportPdfDialog/ExportPdfDialog.tsx` — dialog z opcjami: typ, orientacja, rozmiar, wybór kolumn, grupy
+- [x] `electron/preload.ts` — IPC: exportRundownPdf, exportTimelinePdf
+- [x] `electron/main.ts` — IPC handlery + import PDF module + dialog zapisu pliku
+- [x] `src/types/electron.d.ts` — typy dla nowych IPC
+- [x] `src/App.tsx` — przycisk "PDF" w toolbar + renderowanie ExportPdfDialog
+- [x] `tests/unit/rundown-pdf.test.ts` — 20 testów (rundown PDF, timeline PDF, extractPlainText)
+- [x] npm: jspdf + jspdf-autotable
+
+**Statystyki Fazy 33:** 931 testów (911 + 20 nowych), 8 plików nowych, 4 zmodyfikowane
 
 ---
 

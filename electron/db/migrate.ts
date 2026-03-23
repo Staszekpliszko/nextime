@@ -53,6 +53,28 @@ function runIncrementalMigrations(db: Database.Database): void {
     db.exec(`ALTER TABLE cues ADD COLUMN status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN ('ready','standby','done','skipped'))`);
   }
 
+  // Faza 35: tabela team_notes (notatki zespołowe)
+  const hasTeamNotes = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='team_notes'`).all() as Array<{ name: string }>).length > 0;
+  if (!hasTeamNotes) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS team_notes (
+          id            TEXT    PRIMARY KEY,
+          rundown_id    TEXT    NOT NULL REFERENCES rundowns(id) ON DELETE CASCADE,
+          cue_id        TEXT    REFERENCES cues(id) ON DELETE SET NULL,
+          author_name   TEXT    NOT NULL,
+          content       TEXT    NOT NULL,
+          resolved      INTEGER NOT NULL DEFAULT 0 CHECK(resolved IN (0, 1)),
+          created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_team_notes_rundown ON team_notes(rundown_id);
+      CREATE INDEX IF NOT EXISTS idx_team_notes_cue     ON team_notes(cue_id);
+      CREATE TRIGGER IF NOT EXISTS trg_team_notes_updated
+          AFTER UPDATE ON team_notes
+          BEGIN UPDATE team_notes SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id; END;
+    `);
+  }
+
   // Faza 18: tabela app_settings (key-value store)
   const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'`).all() as Array<{ name: string }>;
   if (tables.length === 0) {

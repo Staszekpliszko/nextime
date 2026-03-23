@@ -15,6 +15,7 @@ export { createMediaFileRepo } from './media-file.repo';
 export { createTimelineCueRepo } from './timeline-cue.repo';
 export { createCameraPresetRepo } from './camera-preset.repo';
 export { createSettingsRepo } from './settings.repo';
+export { createTeamNoteRepo } from './team-note.repo';
 
 // Re-export helpers
 export { generateId, toBool, fromBool, parseJson, toJson } from './base';

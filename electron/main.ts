@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { openDatabase, closeDb } from './db/connection';
 import { runMigrations } from './db/migrate';
-import { createRundownRepo, createCueRepo, createProjectRepo, createEventRepo, createUserRepo, createActRepo, createTrackRepo, createTimelineCueRepo, createOutputConfigRepo, createColumnRepo, createCellRepo, createCameraPresetRepo, createMediaFileRepo, createTextVariableRepo, createCueGroupRepo, createPrivateNoteRepo, createSettingsRepo } from './db/repositories';
+import { createRundownRepo, createCueRepo, createProjectRepo, createEventRepo, createUserRepo, createActRepo, createTrackRepo, createTimelineCueRepo, createOutputConfigRepo, createColumnRepo, createCellRepo, createCameraPresetRepo, createMediaFileRepo, createTextVariableRepo, createCueGroupRepo, createPrivateNoteRepo, createSettingsRepo, createTeamNoteRepo } from './db/repositories';
 import { PlaybackEngine } from './playback-engine';
 import { RundownWsServer } from './ws-server';
 import { createHttpServer } from './http-server';
@@ -42,6 +42,7 @@ import type { CreateMediaFileInput } from './db/repositories/media-file.repo';
 import type { CreateTextVariableInput, UpdateTextVariableInput } from './db/repositories/text-variable.repo';
 import type { CreateCueGroupInput, UpdateCueGroupInput } from './db/repositories/cue-group.repo';
 import type { CreateColumnInput, UpdateColumnInput } from './db/repositories/column.repo';
+import type { CreateTeamNoteInput, UpdateTeamNoteInput } from './db/repositories/team-note.repo';
 import type { RundownChange } from './ws-protocol-types';
 import crypto from 'crypto';
 import { exportRundownPdf, exportTimelinePdf } from './pdf';
@@ -73,6 +74,7 @@ let mediaFileRepo: ReturnType<typeof createMediaFileRepo>;
 let textVariableRepo: ReturnType<typeof createTextVariableRepo>;
 let cueGroupRepo: ReturnType<typeof createCueGroupRepo>;
 let privateNoteRepo: ReturnType<typeof createPrivateNoteRepo>;
+let teamNoteRepo: ReturnType<typeof createTeamNoteRepo>;
 
 // Domyślny user ID — ustalany po seedowaniu (brak auth, single-user)
 let localUserId = '';
@@ -107,6 +109,7 @@ async function initServices(): Promise<void> {
   textVariableRepo = createTextVariableRepo(db);
   cueGroupRepo = createCueGroupRepo(db);
   privateNoteRepo = createPrivateNoteRepo(db);
+  teamNoteRepo = createTeamNoteRepo(db);
 
   // 2a. Settings Manager — wczytaj ustawienia z DB
   const settingsRepo = createSettingsRepo(db);
@@ -1007,6 +1010,47 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('nextime:deletePrivateNote', (_event, cueId: string) => {
     return privateNoteRepo.deleteByCueAndUser(cueId, localUserId);
+  });
+
+  // ── Team Notes (Faza 35) ───────────────────────────────────────
+
+  ipcMain.handle('nextime:getTeamNotes', (_event, rundownId: string) => {
+    return teamNoteRepo.findByRundown(rundownId);
+  });
+
+  ipcMain.handle('nextime:createTeamNote', (_event, input: CreateTeamNoteInput) => {
+    const note = teamNoteRepo.create(input);
+    // Broadcast do wszystkich klientów WS
+    if (wsServer) {
+      wsServer.broadcastTeamNoteDelta(note.rundown_id, 'added', note);
+    }
+    return note;
+  });
+
+  ipcMain.handle('nextime:updateTeamNote', (_event, id: string, input: UpdateTeamNoteInput) => {
+    const note = teamNoteRepo.update(id, input);
+    if (note && wsServer) {
+      wsServer.broadcastTeamNoteDelta(note.rundown_id, 'updated', note);
+    }
+    return note;
+  });
+
+  ipcMain.handle('nextime:resolveTeamNote', (_event, id: string, resolved: boolean) => {
+    const note = teamNoteRepo.toggleResolved(id, resolved);
+    if (note && wsServer) {
+      wsServer.broadcastTeamNoteDelta(note.rundown_id, 'resolved', note);
+    }
+    return note;
+  });
+
+  ipcMain.handle('nextime:deleteTeamNote', (_event, id: string) => {
+    // Pobierz notatkę przed usunięciem (potrzebna do broadcast)
+    const note = teamNoteRepo.findById(id);
+    const deleted = teamNoteRepo.delete(id);
+    if (deleted && note && wsServer) {
+      wsServer.broadcastTeamNoteDelta(note.rundown_id, 'deleted', note);
+    }
+    return deleted;
   });
 
   // ── Column Visibility (Faza 13) ─────────────────────────────

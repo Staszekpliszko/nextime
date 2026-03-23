@@ -1624,12 +1624,25 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 35 — Team Notes (zespołowe notatki) [PLANOWANA]
+## Faza 35 — Team Notes (zespołowe notatki) [UKOŃCZONA]
 
-- [ ] `team-note.repo.ts` — TeamNote CRUD (rundown_id, cue_id?, author_name, content, resolved)
-- [ ] `TeamNotesPanel.tsx` — panel boczny, filtr per cue, badge count
-- [ ] WS broadcast: team-notes:delta
-- [ ] Testy: ~12
+- [x] `docs/schema.sql` — CREATE TABLE team_notes (id, rundown_id FK, cue_id FK nullable, author_name, content, resolved, created_at, updated_at) + indeksy + trigger updated_at
+- [x] `electron/db/migrate.ts` — migracja inkrementalna dla istniejących baz
+- [x] `electron/db/repositories/team-note.repo.ts` — NOWY: TeamNote, CreateTeamNoteInput, UpdateTeamNoteInput, CRUD (create, findById, findByRundown, findByCue, update, toggleResolved, delete, countUnresolved)
+- [x] `electron/db/repositories/index.ts` — re-eksport createTeamNoteRepo
+- [x] `electron/main.ts` — import + inicjalizacja teamNoteRepo + 5 IPC handlerów (getTeamNotes, createTeamNote, updateTeamNote, resolveTeamNote, deleteTeamNote) + broadcast WS po CRUD
+- [x] `electron/preload.ts` — 5 nowych metod (getTeamNotes, createTeamNote, updateTeamNote, deleteTeamNote, resolveTeamNote)
+- [x] `src/types/electron.d.ts` — import TeamNote + 5 metod w NextimeApi
+- [x] `electron/ws-server.ts` — broadcastTeamNoteDelta(rundownId, op, note) → event 'team-notes:delta'
+- [x] `src/hooks/useRundownSocket.ts` — case 'team-notes:delta' → custom event nextime:team-notes-delta
+- [x] `src/components/TeamNotesPanel/TeamNotesPanel.tsx` — NOWY: panel boczny (modal), filtr Wszystkie/Dla tego cue, formularz dodawania (autor + treść), badge nierozwiązanych, localStorage autor
+- [x] `src/components/TeamNotesPanel/TeamNoteItem.tsx` — NOWY: pojedyncza notatka (autor, treść, czas relative, resolved toggle, usuń)
+- [x] `src/App.tsx` — przycisk "Notatki" w toolbarze z badge count, TeamNotesPanel mount, ładowanie count po loadRundown, listener WS team-notes:delta → odświeżenie badge
+- [x] `tests/unit/db/team-note.repo.test.ts` — NOWY: 11 testów (CRUD, sortowanie, cascade delete, SET NULL cue)
+- [x] `tests/unit/team-notes-ws.test.ts` — NOWY: 4 testy (broadcast added/resolved/deleted, format envelope)
+
+**Statystyki Fazy 35:** 15 nowych testów, ~450 linii nowego kodu
+**ŁĄCZNIE:** 974 testy, 81 plików testów
 
 ---
 

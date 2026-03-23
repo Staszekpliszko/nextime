@@ -473,6 +473,29 @@ CREATE TRIGGER IF NOT EXISTS trg_private_notes_updated
 
 
 -- ============================================================
+--  POZIOM 5B: TEAM NOTES (notatki zespołowe — widoczne dla wszystkich)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS team_notes (
+    id            TEXT    PRIMARY KEY,
+    rundown_id    TEXT    NOT NULL REFERENCES rundowns(id) ON DELETE CASCADE,
+    cue_id        TEXT    REFERENCES cues(id) ON DELETE SET NULL,  -- NULL = notatka globalna
+    author_name   TEXT    NOT NULL,
+    content       TEXT    NOT NULL,
+    resolved      INTEGER NOT NULL DEFAULT 0 CHECK(resolved IN (0, 1)),
+    created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_notes_rundown ON team_notes(rundown_id);
+CREATE INDEX IF NOT EXISTS idx_team_notes_cue     ON team_notes(cue_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_team_notes_updated
+    AFTER UPDATE ON team_notes
+    BEGIN UPDATE team_notes SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id; END;
+
+
+-- ============================================================
 --  POZIOM 6: APP SETTINGS (key-value store)
 -- ============================================================
 

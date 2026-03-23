@@ -327,6 +327,27 @@ contextBridge.exposeInMainWorld('nextime', {
   deletePrivateNote: (cueId: string): Promise<boolean> =>
     ipcRenderer.invoke('nextime:deletePrivateNote', cueId),
 
+  // ── Team Notes (Faza 35) ──────────────────────────────
+  /** Pobiera notatki zespołowe dla rundownu */
+  getTeamNotes: (rundownId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:getTeamNotes', rundownId),
+
+  /** Tworzy notatkę zespołową */
+  createTeamNote: (input: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:createTeamNote', input),
+
+  /** Aktualizuje notatkę zespołową */
+  updateTeamNote: (id: string, input: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:updateTeamNote', id, input),
+
+  /** Usuwa notatkę zespołową */
+  deleteTeamNote: (id: string): Promise<boolean> =>
+    ipcRenderer.invoke('nextime:deleteTeamNote', id),
+
+  /** Oznacza notatkę jako rozwiązaną / nierozwiązaną */
+  resolveTeamNote: (id: string, resolved: boolean): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:resolveTeamNote', id, resolved),
+
   // ── Column Visibility (Faza 13) ───────────────────────
   /** Ustawia widoczność kolumny (ukrywa/pokazuje) */
   setColumnVisibility: (columnId: string, hidden: boolean): Promise<unknown> =>

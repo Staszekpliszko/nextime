@@ -183,6 +183,14 @@ export class RundownWsServer {
     });
   }
 
+  /** Broadcast zmian notatek zespołowych (Faza 35) */
+  broadcastTeamNoteDelta(rundownId: string, op: 'added' | 'updated' | 'deleted' | 'resolved', note: unknown): void {
+    this.broadcast('team-notes:delta', {
+      rundown_id: rundownId,
+      change: { op, note },
+    });
+  }
+
   /** Ręczne wymuszenie broadcastu timesnap (do testów) */
   broadcastTimesnap(): void {
     const snap = this.engine.buildTimesnap();

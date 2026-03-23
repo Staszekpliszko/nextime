@@ -24,6 +24,7 @@ import type { OutputConfig, CreateOutputConfigInput, UpdateOutputConfigInput } f
 import type { Column, CreateColumnInput, UpdateColumnInput, ColumnVisibility } from '../../electron/db/repositories/column.repo';
 import type { Cell } from '../../electron/db/repositories/cell.repo';
 import type { PrivateNote } from '../../electron/db/repositories/private-note.repo';
+import type { TeamNote, CreateTeamNoteInput, UpdateTeamNoteInput } from '../../electron/db/repositories/team-note.repo';
 import type { CompanionInfo } from '../../electron/network-info';
 
 /** Rundown summary z IPC — lekki obiekt do listy */
@@ -157,6 +158,13 @@ export interface NextimeApi {
   getPrivateNotes(rundownId: string): Promise<PrivateNote[]>;
   upsertPrivateNote(cueId: string, content: string): Promise<PrivateNote>;
   deletePrivateNote(cueId: string): Promise<boolean>;
+
+  // ── Team Notes (Faza 35) ──────────────────────────────
+  getTeamNotes(rundownId: string): Promise<TeamNote[]>;
+  createTeamNote(input: CreateTeamNoteInput): Promise<TeamNote>;
+  updateTeamNote(id: string, input: UpdateTeamNoteInput): Promise<TeamNote | undefined>;
+  deleteTeamNote(id: string): Promise<boolean>;
+  resolveTeamNote(id: string, resolved: boolean): Promise<TeamNote | undefined>;
 
   // ── Column Visibility (Faza 13) ─────────────────────────
   setColumnVisibility(columnId: string, hidden: boolean): Promise<ColumnVisibility>;

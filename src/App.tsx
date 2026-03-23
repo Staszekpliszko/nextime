@@ -23,6 +23,7 @@ import { ToastContainer, useToastStore } from '@/components/Toast/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp/ShortcutHelp';
 import { SettingsPanel } from '@/components/SettingsPanel/SettingsPanel';
 import { ExportPdfDialog } from '@/components/ExportPdfDialog/ExportPdfDialog';
+import { TeamNotesPanel } from '@/components/TeamNotesPanel/TeamNotesPanel';
 import type { TimelineCueSummary, TextVariableInfo, CueGroupInfo } from '@/store/playback.store';
 import type { FPS } from '@/utils/timecode';
 
@@ -85,6 +86,8 @@ export default function App() {
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showExportPdfDialog, setShowExportPdfDialog] = useState(false);
+  const [showTeamNotesPanel, setShowTeamNotesPanel] = useState(false);
+  const [teamNotesUnresolvedCount, setTeamNotesUnresolvedCount] = useState(0);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   // Faza 29: zunifikowany status switchera (zamiast atemConnected)
   const switcherStatus = useSwitcherStatus(1000);
@@ -125,6 +128,21 @@ export default function App() {
     const handler = () => setShowShortcutHelp(prev => !prev);
     document.addEventListener('nextime:toggle-shortcut-help', handler);
     return () => document.removeEventListener('nextime:toggle-shortcut-help', handler);
+  }, []);
+
+  // Faza 35: nasłuchuj na WS event team-notes:delta → odśwież badge count
+  useEffect(() => {
+    const handler = () => {
+      // Odśwież liczbę nierozwiązanych notatek
+      const runId = usePlaybackStore.getState().activeRundownId;
+      if (runId) {
+        window.nextime.getTeamNotes(runId).then(notes => {
+          setTeamNotesUnresolvedCount(notes.filter(n => !n.resolved).length);
+        }).catch(() => { /* ignoruj */ });
+      }
+    };
+    document.addEventListener('nextime:team-notes-delta', handler);
+    return () => document.removeEventListener('nextime:team-notes-delta', handler);
   }, []);
 
   // Faza 14: skrót Delete → usuwa zaznaczony cue
@@ -377,6 +395,14 @@ export default function App() {
           if (v.hidden) hidden.add(v.column_id);
         }
         setHiddenColumnIds(hidden);
+      } catch {
+        // Ignoruj — nie blokuj ładowania rundownu
+      }
+
+      // Faza 35: załaduj liczbę nierozwiązanych notatek zespołowych
+      try {
+        const teamNotes = await window.nextime.getTeamNotes(rundownId);
+        setTeamNotesUnresolvedCount(teamNotes.filter(n => !n.resolved).length);
       } catch {
         // Ignoruj — nie blokuj ładowania rundownu
       }
@@ -665,6 +691,19 @@ export default function App() {
         >
           PDF
         </button>
+        {/* Faza 35: przycisk Notatki zespołu */}
+        <button
+          onClick={() => setShowTeamNotesPanel(true)}
+          className="px-3 py-1 rounded text-xs font-medium transition-colors bg-slate-700 text-slate-400 hover:bg-slate-600 border border-slate-600 relative"
+          title="Notatki zespołu"
+        >
+          Notatki
+          {teamNotesUnresolvedCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 px-1 py-0 text-[9px] font-bold bg-blue-600 text-white rounded-full min-w-[14px] text-center leading-[14px]">
+              {teamNotesUnresolvedCount}
+            </span>
+          )}
+        </button>
         {/* Faza 18: przycisk Ustawienia */}
         <button
           onClick={() => setShowSettingsPanel(true)}
@@ -819,6 +858,22 @@ export default function App() {
       {/* Faza 18: Settings Panel */}
       {showSettingsPanel && (
         <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+      )}
+
+      {/* Faza 35: Team Notes Panel */}
+      {showTeamNotesPanel && activeRundownId && (
+        <TeamNotesPanel
+          rundownId={activeRundownId}
+          onClose={() => {
+            setShowTeamNotesPanel(false);
+            // Odśwież badge count po zamknięciu panelu
+            if (activeRundownId) {
+              window.nextime.getTeamNotes(activeRundownId).then(notes => {
+                setTeamNotesUnresolvedCount(notes.filter(n => !n.resolved).length);
+              }).catch(() => { /* ignoruj */ });
+            }
+          }}
+        />
       )}
 
       {/* Faza 33: Export PDF Dialog */}

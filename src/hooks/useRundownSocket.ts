@@ -171,6 +171,16 @@ export function useRundownSocket() {
         break;
       }
 
+      // Faza 35: team notes delta — emituj custom event do App
+      case 'team-notes:delta': {
+        const tnp = envelope.payload as {
+          rundown_id: string;
+          change: { op: string; note: unknown };
+        };
+        document.dispatchEvent(new CustomEvent('nextime:team-notes-delta', { detail: tnp }));
+        break;
+      }
+
       // Faza 11: lista podłączonych klientów
       case 'server:clients_changed': {
         const cc = envelope.payload as { clients: Array<{ session_id: string; client_type: string; connected_at: string; camera_filter?: number }> };

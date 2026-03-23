@@ -572,6 +572,15 @@ contextBridge.exposeInMainWorld('nextime', {
   switcherCut: (inputId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('nextime:switcherCut', inputId),
 
+  // ── Companion Info (Faza 34B) ─────────────────────────────────
+  /** Pobiera informacje o sieci, portach i endpointach dla Companion */
+  getNetworkInfo: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:getNetworkInfo'),
+
+  /** Pobiera listę podłączonych klientów WebSocket */
+  getWsClients: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:getWsClients'),
+
   // ── Settings (Faza 18) ──────────────────────────────────────
   /** Pobiera wszystkie ustawienia */
   getSettings: (): Promise<unknown> =>

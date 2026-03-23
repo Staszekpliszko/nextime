@@ -1579,11 +1579,48 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 34 — Companion/StreamDeck Rozszerzone API [PLANOWANA]
+## Faza 34 — Companion/StreamDeck Rozszerzone API [UKOŃCZONA]
 
-- [ ] 11 nowych HTTP endpointów: goto cue, state, cues list, step_next, take_shot, hold_toggle, step_toggle, ATEM cut/preview, PTZ preset, speed
-- [ ] `electron/http/companion-extended.ts`
-- [ ] Testy: ~15
+- [x] `electron/http/companion-extended.ts` — NOWY: Express Router z 11 endpointami GET:
+  1. `/api/rundown/:id/goto/:cueId` — skok do konkretnego cue
+  2. `/api/rundown/:id/state` — pełny stan (current cue, is_playing, remaining, elapsed, over/under, total_cues, next_cue)
+  3. `/api/rundown/:id/cues` — lista cue'ów z tytułami, statusami i is_current
+  4. `/api/rundown/:id/speed/:value` — zmiana prędkości playback (zakres 0.1–10.0)
+  5. `/api/act/:id/step_next` — step do następnego vision cue
+  6. `/api/act/:id/take_shot` — force next vision cue
+  7. `/api/act/:id/hold_toggle` — toggle hold mode
+  8. `/api/act/:id/step_toggle` — toggle step mode
+  9. `/api/atem/cut/:input` — ATEM CUT na input
+  10. `/api/atem/preview/:input` — ATEM PREVIEW na input
+  11. `/api/ptz/:camera/preset/:nr` — PTZ recall preset
+- [x] `electron/http-server.ts` — dodany import + app.use() companion-extended routera, senderManager jako 3. argument
+- [x] `electron/main.ts` — SenderManager tworzony przed HTTP server (żeby companion-extended miał dostęp)
+- [x] Walidacja parametrów: numeryczne input/camera/preset/speed, string cueId, zakresy
+- [x] JSON odpowiedź: `{ ok: boolean, data?: ..., error?: string }`
+- [x] Dependency injection: engine + senderManager (opcjonalny — 503 gdy brak)
+- [x] `tests/unit/companion-extended.test.ts` — 22 testy:
+  - Rundown: goto (ok, nieistniejący cue, wrong ID), state (format, wrong ID), cues (lista, wrong ID), speed (błędna wartość, poza zakresem)
+  - Act/Timeline: step_next, take_shot, hold_toggle (toggle), step_toggle (toggle, wrong ID), speed w timeline mode
+  - ATEM: cut/preview bez senderManager → 503, błędny input → 400
+  - PTZ: bez senderManager → 503, błędny numer kamery → 400, kamera poza zakresem 1–16 → 400
+
+**Statystyki Fazy 34:** 22 nowe testy, 953 łącznie, 3 pliki nowe, 2 zmodyfikowane
+
+---
+
+## Faza 34B — Companion Settings Tab + Auto-detect IP + Endpoint Info [UKOŃCZONA]
+
+- [x] Zakładka "Companion" w SettingsPanel z:
+  - Auto-detect IP lokalnego komputera (wszystkie interfejsy sieciowe)
+  - Wyświetlenie adresu HTTP API i portu WS z przyciskami "Kopiuj"
+  - Lista wszystkich 15 endpointów (4 basic + 11 extended) z opisami po polsku
+  - Instrukcja konfiguracji Companion krok po kroku
+  - Status: ile klientów Companion/WS podłączonych
+- [x] IPC: `nextime:getNetworkInfo` — zwraca listę IP + porty HTTP/WS
+- [x] IPC: `nextime:getWsClients` — zwraca listę podłączonych klientów WS
+- [x] `electron/network-info.ts` — NOWY: auto-detect IP przez `os.networkInterfaces()`
+- [x] `src/components/SettingsPanel/CompanionTab.tsx` — NOWY: zakładka UI
+- [x] Testy: 6 (959 łącznie)
 
 ---
 

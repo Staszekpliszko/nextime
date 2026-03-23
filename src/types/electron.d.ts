@@ -24,6 +24,7 @@ import type { OutputConfig, CreateOutputConfigInput, UpdateOutputConfigInput } f
 import type { Column, CreateColumnInput, UpdateColumnInput, ColumnVisibility } from '../../electron/db/repositories/column.repo';
 import type { Cell } from '../../electron/db/repositories/cell.repo';
 import type { PrivateNote } from '../../electron/db/repositories/private-note.repo';
+import type { CompanionInfo } from '../../electron/network-info';
 
 /** Rundown summary z IPC — lekki obiekt do listy */
 export interface RundownSummary {
@@ -253,6 +254,10 @@ export interface NextimeApi {
   getSettings(): Promise<AllSettings>;
   getSettingsSection<S extends SettingsSection>(section: S): Promise<AllSettings[S]>;
   updateSettings<S extends SettingsSection>(section: S, values: Partial<AllSettings[S]>): Promise<void>;
+
+  // ── Companion Info (Faza 34B) ────────────────────────────────
+  getNetworkInfo(): Promise<CompanionInfo>;
+  getWsClients(): Promise<Array<{ session_id: string; client_type: string; connected_at: string; camera_filter?: number }>>;
 
   // ── Multi-Window (Faza 19) ──────────────────────────────────
   getDisplays(): Promise<DisplayInfo[]>;

@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings, VmixSettings, VisionSettings } from '../../../electron/settings-manager';
 import { ObsSettingsTab } from './ObsSettingsTab';
 import { VmixSettingsTab } from './VmixSettingsTab';
+import { CompanionTab } from './CompanionTab';
 
 // ── Typy ────────────────────────────────────────────────
 
-type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'vmix' | 'ltc' | 'gpi' | 'ptz';
+type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'vmix' | 'ltc' | 'gpi' | 'ptz' | 'companion';
 
 interface Tab {
   id: TabId;
@@ -22,6 +23,7 @@ const TABS: Tab[] = [
   { id: 'ltc', label: 'LTC' },
   { id: 'gpi', label: 'GPI' },
   { id: 'ptz', label: 'PTZ' },
+  { id: 'companion', label: 'Companion' },
 ];
 
 interface SettingsPanelProps {
@@ -112,6 +114,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             {activeTab === 'ltc' && <LtcTab settings={settings.ltc} onSave={v => saveSection('ltc', v)} />}
             {activeTab === 'gpi' && <GpiTab settings={settings.gpi} onSave={v => saveSection('gpi', v)} />}
             {activeTab === 'ptz' && <PtzTab settings={settings.ptz} onSave={v => saveSection('ptz', v)} />}
+            {activeTab === 'companion' && <CompanionTab />}
           </div>
         </div>
       </div>

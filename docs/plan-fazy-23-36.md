@@ -179,14 +179,39 @@ Pomijamy (duży scope/niszowe): Cloud sync (#3), ATEM RS-422/GVG (#5), LTC audio
 
 ---
 
-## FAZA 34 — Companion/StreamDeck Rozszerzone API
+## FAZA 34 — Companion/StreamDeck Rozszerzone API [UKOŃCZONA]
 **Braki:** #16
 **Zależności:** Faza 27
 
 **Nowe pliki:**
 - companion-extended.ts — 11 endpointów: goto, state, cues, step_next, take_shot, hold_toggle, step_toggle, atem cut/preview, ptz preset, speed
 
-**Testy:** ~15 | **Sesje:** 1
+**Testy:** ~22 | **Sesje:** 1
+
+---
+
+## FAZA 34B — Companion Settings Tab + Auto-detect IP
+**Braki:** #16 (GUI)
+**Zależności:** Faza 34
+
+Zakładka "Companion" w SettingsPanel — GUI dla konfiguracji integracji z Bitfocus Companion.
+
+**Kontekst:** Bitfocus Companion to osobna aplikacja do StreamDecka. Moduł `companion-module-nextime` to osobne repozytorium npm. NEXTIME musi eksponować informacje o połączeniu (IP, porty, endpointy) żeby użytkownik wiedział co wpisać w Companion.
+
+**Nowe pliki:**
+- `electron/network-info.ts` — getNetworkAddresses() via `os.networkInterfaces()`, getCompanionInfo()
+- `src/components/SettingsPanel/CompanionTab.tsx` — zakładka UI:
+  - Sekcja "Połączenie": auto-detect IP (lista interfejsów), port HTTP (3142), port WS (3141), przyciski "Kopiuj"
+  - Sekcja "Status": liczba podłączonych klientów WS (polling lub IPC)
+  - Sekcja "Dostępne endpointy": tabela 15 endpointów z metodą, URL i opisem po polsku
+  - Sekcja "Instrukcja": krok po kroku jak skonfigurować Companion (po polsku)
+
+**Modyfikacje:**
+- `electron/main.ts` — IPC handler `nextime:getNetworkInfo`
+- `electron/preload.ts` + `src/types/electron.d.ts` — nowa metoda
+- `src/components/SettingsPanel/SettingsPanel.tsx` — dodanie zakładki "Companion" do TABS
+
+**Testy:** ~5 | **Sesje:** 1
 
 ---
 
@@ -269,7 +294,8 @@ Dwie opcje sterowania StreamDeckiem: 1) natywnie (ta faza), 2) przez Companion (
 | 31 | OSC Custom Schemas | 4 | ~12 | — | 1 |
 | 32 | Panasonic PTZ HTTP | 7 | ~12 | — | 1 |
 | 33 | Export PDF / Print | 2 | ~15 | jspdf | 1 |
-| 34 | Companion Extended API | 16 | ~15 | — | 1 |
+| 34 | Companion Extended API | 16 | ~22 | — | 1 |
+| 34B | Companion Settings Tab | 16 | ~5 | — | 1 |
 | 35 | Team Notes | 13 | ~12 | — | 1 |
 | 36 | Waveform Preview | 14 | ~8 | — | 1 |
 | 37 | Natywny StreamDeck | — | ~20 | @elgato-stream-deck/node, sharp | 1-2 |

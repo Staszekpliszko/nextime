@@ -18,6 +18,7 @@ import { resolvePreloadPath } from './paths';
 import { loadSchemas as loadOscSchemas } from './osc-schemas/schema-loader';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
+import { getCompanionInfo } from './network-info';
 import { probeMediaFile, generateWaveform, MediaIpcBridge } from './media';
 import {
   UndoManager,
@@ -165,7 +166,11 @@ async function initServices(): Promise<void> {
   wsPort = await wsServer.start(3141);
   console.log(`[NextTime] WebSocket server na porcie ${wsPort}`);
 
-  // 5. HTTP API (Companion-compatible + Output views)
+  // 5. Sender Manager (OSC, MIDI, GPI, Media, ATEM) — przed HTTP API żeby companion-extended miał dostęp
+  senderManager = new SenderManager();
+  senderManager.attach(engine);
+
+  // 6. HTTP API (Companion-compatible + Output views + Companion Extended)
   const httpApp = createHttpServer(engine, {
     outputConfigRepo,
     cueRepo,
@@ -174,14 +179,10 @@ async function initServices(): Promise<void> {
     rundownRepo,
     textVariableRepo,
     wsPort,
-  });
+  }, senderManager);
   httpServer = httpApp.listen(3142, () => {
     console.log('[NextTime] HTTP API na porcie 3142');
   });
-
-  // 6. Sender Manager (OSC, MIDI, GPI, Media, ATEM)
-  senderManager = new SenderManager();
-  senderManager.attach(engine);
 
   // 6a. Media IPC Bridge — most main↔renderer dla media playback (Faza 24)
   mediaIpcBridge = new MediaIpcBridge();
@@ -1022,6 +1023,17 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('nextime:getHttpPort', () => {
     return 3142;
+  });
+
+  // ── Companion Info (Faza 34B) ─────────────────────────────────
+
+  ipcMain.handle('nextime:getNetworkInfo', () => {
+    return getCompanionInfo(3142, wsPort);
+  });
+
+  ipcMain.handle('nextime:getWsClients', () => {
+    if (!wsServer) return [];
+    return wsServer.getConnectedClients();
   });
 
   // ── Undo / Redo (Faza 16) ────────────────────────────────────

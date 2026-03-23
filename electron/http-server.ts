@@ -1,6 +1,8 @@
 import express from 'express';
 import type { Express, Request, Response } from 'express';
 import type { PlaybackEngine } from './playback-engine';
+import type { SenderManager } from './senders';
+import { createCompanionExtendedRouter } from './http/companion-extended';
 import type { createOutputConfigRepo } from './db/repositories/output-config.repo';
 import type { createCueRepo } from './db/repositories/cue.repo';
 import type { createColumnRepo } from './db/repositories/column.repo';
@@ -29,7 +31,7 @@ interface HttpServerRepos {
 }
 
 /** Tworzy Express app z endpointami Companion-compatible + Output views */
-export function createHttpServer(engine: PlaybackEngine, repos?: HttpServerRepos): Express {
+export function createHttpServer(engine: PlaybackEngine, repos?: HttpServerRepos, senderManager?: SenderManager | null): Express {
   const app = express();
 
   // ── Companion-compatible endpoints ──────────────────────────
@@ -237,6 +239,10 @@ export function createHttpServer(engine: PlaybackEngine, repos?: HttpServerRepos
       res.type('html').send(html);
     });
   }
+
+  // ── Companion Extended API (Faza 34) — rozszerzone endpointy Companion/StreamDeck ──
+  const companionExtendedRouter = createCompanionExtendedRouter({ engine, senderManager });
+  app.use(companionExtendedRouter);
 
   // 404 dla nieznanych routów
   app.use((_req: Request, res: Response) => {

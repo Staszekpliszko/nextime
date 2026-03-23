@@ -232,11 +232,16 @@ async function initServices(): Promise<void> {
     lastIsPlaying = isPlaying;
 
     const target = settingsManager.getSection('vision')?.targetSwitcher ?? 'none';
+    console.log(`[NextTime] state-changed: is_playing=${isPlaying}, targetSwitcher=${target}`);
     if (target === 'vmix') {
       if (isPlaying) {
-        senderManager.vmix.resumePlayback().catch(() => {});
+        senderManager.vmix.resumePlayback().catch(err => {
+          console.error('[NextTime] vMix resumePlayback błąd:', err instanceof Error ? err.message : err);
+        });
       } else {
-        senderManager.vmix.pausePlayback().catch(() => {});
+        senderManager.vmix.pausePlayback().catch(err => {
+          console.error('[NextTime] vMix pausePlayback błąd:', err instanceof Error ? err.message : err);
+        });
       }
     }
     // OBS nie ma globalnego play/pause — pomijamy
@@ -266,6 +271,12 @@ async function initServices(): Promise<void> {
   streamDeckManager = new StreamDeckManager();
   streamDeckFeedback = new StreamDeckFeedback();
   streamDeckPagesConfig = getDefaultPages(15); // domyślnie MK.2 layout
+
+  // Synchronizacja referencji pagesConfig po resecie/otwarciu z IPC
+  streamDeckManager.on('pages-reset', (newConfig: StreamDeckPagesConfig) => {
+    streamDeckPagesConfig = newConfig;
+    console.log('[NextTime] StreamDeck pagesConfig zsynchronizowany z IPC');
+  });
 
   // Podpięcie eventów przycisków → akcje
   // UWAGA: używamy getCurrentPages() z IPC żeby zawsze mieć aktualną referencję

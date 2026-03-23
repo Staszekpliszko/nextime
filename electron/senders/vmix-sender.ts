@@ -219,47 +219,68 @@ export class VmixSender extends EventEmitter {
 
   /** Wznawia odtwarzanie aktywnego inputu na PGM */
   async resumePlayback(): Promise<void> {
-    // vMix: Play na aktualnym PGM
+    // Odśwież stan żeby mieć aktualny activeInput
+    await this.refreshState();
     const pgm = this._state?.activeInput;
+    console.log(`[VmixSender] resumePlayback() — activeInput=${pgm ?? 'null'}`);
     if (pgm !== undefined && pgm !== null) {
       await this.sendFunction('Play', pgm);
+    } else {
+      console.warn('[VmixSender] resumePlayback() — brak activeInput, pomijam');
     }
   }
 
   /** Pauzuje odtwarzanie aktywnego inputu na PGM */
   async pausePlayback(): Promise<void> {
+    // Odśwież stan żeby mieć aktualny activeInput
+    await this.refreshState();
     const pgm = this._state?.activeInput;
+    console.log(`[VmixSender] pausePlayback() — activeInput=${pgm ?? 'null'}`);
     if (pgm !== undefined && pgm !== null) {
       await this.sendFunction('Pause', pgm);
+    } else {
+      console.warn('[VmixSender] pausePlayback() — brak activeInput, pomijam');
     }
   }
 
   /** Przejście do następnego inputu (CUT na PGM+1) */
   async nextInput(): Promise<void> {
+    // Odśwież stan żeby mieć aktualną listę inputów i activeInput
+    await this.refreshState();
     const pgm = this._state?.activeInput;
+    console.log(`[VmixSender] nextInput() — activeInput=${pgm ?? 'null'}`);
     if (pgm !== undefined && pgm !== null) {
       const inputs = this.getInputList();
       const currentIdx = inputs.findIndex(i => i.number === pgm);
       if (currentIdx >= 0 && currentIdx < inputs.length - 1) {
         const nextInput = inputs[currentIdx + 1];
         if (nextInput) {
+          console.log(`[VmixSender] nextInput() — cut na input ${nextInput.number}`);
           await this.cut(nextInput.number);
         }
+      } else {
+        console.log(`[VmixSender] nextInput() — już na ostatnim inpucie (idx=${currentIdx}, total=${inputs.length})`);
       }
     }
   }
 
   /** Przejście do poprzedniego inputu (CUT na PGM-1) */
   async prevInput(): Promise<void> {
+    // Odśwież stan żeby mieć aktualną listę inputów i activeInput
+    await this.refreshState();
     const pgm = this._state?.activeInput;
+    console.log(`[VmixSender] prevInput() — activeInput=${pgm ?? 'null'}`);
     if (pgm !== undefined && pgm !== null) {
       const inputs = this.getInputList();
       const currentIdx = inputs.findIndex(i => i.number === pgm);
       if (currentIdx > 0) {
         const prevInput = inputs[currentIdx - 1];
         if (prevInput) {
+          console.log(`[VmixSender] prevInput() — cut na input ${prevInput.number}`);
           await this.cut(prevInput.number);
         }
+      } else {
+        console.log(`[VmixSender] prevInput() — już na pierwszym inpucie (idx=${currentIdx})`);
       }
     }
   }

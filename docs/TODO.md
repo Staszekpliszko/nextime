@@ -1730,13 +1730,18 @@ Dwie opcje sterowania: 1) natywnie (ta faza), 2) przez Companion (Faza 34).
 
 **Statystyki Fazy 37:** 1030 testów (995 + 35 nowych), zero błędów tsc
 
-### Znane problemy do poprawienia (Faza 37B):
-- [ ] Przycisk "Resetuj do domyślnych" — wymaga debugowania, może nie działać po pierwszym połączeniu
-- [ ] Play/Pause propagacja do vMix — zaimplementowana ale wymaga testów z prawdziwym vMix (resumePlayback/pausePlayback)
-- [ ] Next/Prev propagacja do vMix (nextInput/prevInput) — wymaga testów
-- [ ] Spacja (Play/Pause) → vMix — listener state-changed dodany, wymaga weryfikacji
-- [ ] Zapisywanie konfiguracji stron do DB — po restarcie powinny się wczytywać zapisane strony użytkownika (teraz zawsze generuje domyślne)
+### Znane problemy do poprawienia (Faza 37B): [UKOŃCZONA]
+- [x] Przycisk "Resetuj do domyślnych" — naprawiony: synchronizacja referencji pagesConfig między IPC a main.ts przez event 'pages-reset'
+- [x] Play/Pause propagacja do vMix — naprawiony: refreshState() przed resumePlayback/pausePlayback, logi diagnostyczne
+- [x] Next/Prev propagacja do vMix (nextInput/prevInput) — naprawiony: refreshState() przed operacjami
+- [x] Spacja (Play/Pause) → vMix — zweryfikowany: łańcuch Space → WS cmd:play → engine.play() → state-changed → vMix działa, dodane logi
+- [x] Zapisywanie konfiguracji stron do DB — naprawiony: streamdeckOpen używa loadPagesConfig() zamiast getDefaultPages(), wczytuje zapisane strony z DB
 - [ ] Edycja przycisków w UI — panel boczny może wymagać poprawek UX (scrollowanie, pozycjonowanie)
+
+### Statystyki Fazy 37B:
+- Nowe testy: 14 (6 vmix-transport + 8 streamdeck-switcher-routing)
+- Naprawione testy: 1 (streamdeck-actions cam_pgm — brakowało settingsManager w kontekście)
+- **ŁĄCZNIE: 1044 testów**, zero błędów tsc
 
 ---
 

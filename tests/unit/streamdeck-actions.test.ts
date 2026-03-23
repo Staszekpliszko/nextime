@@ -43,11 +43,31 @@ function createMockSenderManager() {
       runMacro: vi.fn(),
       getStatus: vi.fn().mockReturnValue({ connected: true, programInput: 1, previewInput: 2 }),
     },
+    obs: {
+      setScene: vi.fn().mockResolvedValue(undefined),
+      setPreviewScene: vi.fn().mockResolvedValue(undefined),
+      triggerTransition: vi.fn().mockResolvedValue(undefined),
+    },
+    vmix: {
+      cut: vi.fn().mockResolvedValue(undefined),
+      fade: vi.fn().mockResolvedValue(undefined),
+      setPreview: vi.fn().mockResolvedValue(undefined),
+      resumePlayback: vi.fn().mockResolvedValue(undefined),
+      pausePlayback: vi.fn().mockResolvedValue(undefined),
+      nextInput: vi.fn().mockResolvedValue(undefined),
+      prevInput: vi.fn().mockResolvedValue(undefined),
+    },
     ptz: {
       recallPreset: vi.fn().mockResolvedValue(undefined),
     },
     visionRouter: {},
   } as unknown as ActionContext['senderManager'];
+}
+
+function createMockSettingsManager(targetSwitcher: 'atem' | 'obs' | 'vmix' | 'none' = 'atem') {
+  return {
+    getSection: vi.fn().mockReturnValue({ targetSwitcher }),
+  } as unknown as ActionContext['settingsManager'];
 }
 
 // ── Testy ───────────────────────────────────────────────
@@ -60,7 +80,7 @@ describe('StreamDeck Actions', () => {
   beforeEach(() => {
     engine = createMockEngine();
     senderManager = createMockSenderManager();
-    context = { engine: engine as unknown as ActionContext['engine'], senderManager };
+    context = { engine: engine as unknown as ActionContext['engine'], senderManager, settingsManager: createMockSettingsManager('atem') };
   });
 
   it('ACTION_CATALOG zawiera wszystkie zdefiniowane typy akcji', () => {

@@ -99,9 +99,9 @@ export function registerStreamDeckIpcHandlers(
       const success = await _manager.open(devicePath);
       if (success) {
         const status = _manager.getStatus();
-        // ZAWSZE generuj czyste domyślne strony — stary cache powodował pomieszane przyciski
-        _pagesConfig = getDefaultPages(status.keyCount);
-        savePagesConfig(); // zapisz nowe domyślne do DB
+        // Wczytaj zapisane strony z DB (generuj domyślne tylko dla nowego modelu/keyCount)
+        _pagesConfig = loadPagesConfig(status.keyCount);
+        savePagesConfig(); // zapisz do DB (nowe domyślne lub istniejące)
 
         // KLUCZOWE: podpnij feedback do engine i senderów
         _feedback.detach(); // na wypadek ponownego połączenia
@@ -113,6 +113,9 @@ export function registerStreamDeckIpcHandlers(
 
         // Zapisz enabled = true
         _settingsManager.updateSection('streamdeck', { enabled: true });
+
+        // Synchronizuj referencję w main.ts
+        _manager.emit('pages-reset', _pagesConfig);
 
         console.log(`[StreamDeck IPC] Otwarty i feedback podpięty (${status.keyCount} przycisków, ${_pagesConfig.pages.length} stron)`);
       }
@@ -220,7 +223,9 @@ export function registerStreamDeckIpcHandlers(
     _pagesConfig = getDefaultPages(keyCount);
     savePagesConfig();
     _feedback.updatePagesConfig(_pagesConfig);
-    console.log(`[StreamDeck IPC] Reset OK — ${_pagesConfig.pages.length} stron, pierwsza strona: ${_pagesConfig.pages[0]?.buttons.map(b => b.action).join(', ')}`);
+    // Emituj event żeby main.ts zsynchronizował swoją referencję
+    _manager.emit('pages-reset', _pagesConfig);
+    console.log(`[StreamDeck IPC] Reset OK — ${_pagesConfig.pages.length} stron`);
     return { ok: true };
   });
 }

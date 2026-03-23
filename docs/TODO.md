@@ -1663,36 +1663,80 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 37 — Natywny StreamDeck (USB HID) [PLANOWANA]
+## Faza 37 — Natywny StreamDeck (USB HID) [UKOŃCZONA]
 
-Bezpośrednia integracja ze StreamDeckiem przez USB — bez Companion, auto-detect modelu, konfigurowalne przyciski.
+Bezpośrednia integracja ze StreamDeckiem przez USB HID — bez Companion, auto-detect modelu, konfigurowalne przyciski z dynamicznym feedbackiem.
 Dwie opcje sterowania: 1) natywnie (ta faza), 2) przez Companion (Faza 34).
 
 **Deps npm:** `@elgato-stream-deck/node`, `sharp` (generowanie obrazów przycisków)
 
-- [ ] `electron/streamdeck/streamdeck-manager.ts` — StreamDeckManager: auto-detect, listDevices(), open(), close()
-  - Obsługiwane modele: Mini (6), MK.2 (15), XL (32), Plus (8+4 enc+LCD), Studio (16+2 enc), Neo (8+2+LCD), Pedal (3)
-  - Eventy: down, up, rotate (encodery), lcdShortPress/lcdSwipe (Plus)
-- [ ] `electron/streamdeck/streamdeck-button-renderer.ts` — generowanie obrazów przycisków z tekstem + ikoną + kolorem tła (sharp)
-- [ ] `electron/streamdeck/streamdeck-pages.ts` — system stron (pages) z przyciskami konfigurowalnymi per model
-- [ ] `electron/streamdeck/streamdeck-actions.ts` — mapowanie przycisk → akcja NEXTIME
-- [ ] Domyślne strony:
-  - **SHOW CONTROL:** Play, Pause, Next, Prev, Goto, Step Next, Take Shot, Hold, Step Mode, FTB
-  - **SHOTBOX:** CAM 1-8 PGM (czerwony=LIVE) + PVW (zielony=preview), CUT, AUTO, DSK, KEY, MACRO
-  - **INFO/TIMERY:** Current Cue (tekst), Next Cue, Remaining (countdown kolorowy), Elapsed, Over/Under, Timecode, Show Clock, Cue Count
-  - **AUDIO/MEDIA:** Media Play/Stop, Vol Up/Down, PTZ Preset 1-4
-  - **NAWIGACJA:** przełączanie stron
-- [ ] Feedback w real-time: tally (czerwony PGM / zielony PVW), countdown (biały→żółty→czerwony→migający), dynamiczny tekst
-- [ ] Zakładka "StreamDeck" w SettingsPanel:
-  - Auto-detect podłączonego modelu (nazwa, serial, przycisków)
-  - Wizualna mapa przycisków (grid wg modelu)
-  - Kliknięcie na przycisk → dropdown z listą funkcji
-  - Strony (pages) — dodawanie/usuwanie
-  - Brightness slider
+- [x] `electron/streamdeck/streamdeck-manager.ts` — NOWY: StreamDeckManager (singleton, EventEmitter):
+  - Auto-detect przez `@elgato-stream-deck/node`: listDevices(), open(path?), close()
+  - Obsługiwane modele: Mini(6), MK.2(15), XL(32), Plus(8+4enc+LCD), Studio(16+2enc), Neo(8+2+LCD), Pedal(3)
+  - Eventy: key-down, key-up, encoder-rotate, lcd-press, connected, disconnected, error
+  - Status: model, serial, firmware, keyCount, encoderCount, lcdStripCount, iconSize, gridColumns×gridRows
+  - Metody: setBrightness(), fillKeyBuffer(), clearKey(), clearAllKeys(), fillKeyColor()
+- [x] `electron/streamdeck/streamdeck-button-renderer.ts` — NOWY: generowanie obrazów przycisków przez sharp:
+  - renderTextButton() — tekst + kolor tła + opcjonalny subtext
+  - renderCountdownButton() — kolorowy countdown: biały(>60s) → żółty(<60s) → czerwony(<30s) → migający(<10s)
+  - renderTallyButton() — tally kamery: czerwony=PGM, zielony=PVW, szary=nieaktywny
+  - renderInfoButton() — etykieta + wartość dynamiczna
+  - renderNavButton() — nawigacja stron
+  - Helpery: formatMmSs(), formatHhMmSsFf()
+- [x] `electron/streamdeck/streamdeck-pages.ts` — NOWY: system stron z konfigurowalnymi przyciskami per model:
+  - getDefaultPages(keyCount) — generuje domyślne strony zależne od modelu
+  - createEmptyPage(name, keyCount) — pusta strona
+  - Nawigacja stron na ostatnich przyciskach (← →)
+- [x] `electron/streamdeck/streamdeck-actions.ts` — NOWY: mapowanie przycisk → akcja NEXTIME:
+  - 23 typy akcji: play, pause, next, prev, goto, step_next, take_shot, hold, step_mode, ftb, cam_pgm, cam_pvw, cut, auto_transition, dsk, macro, media_play, media_stop, vol_up, vol_down, ptz_preset, page_nav, none
+  - ACTION_CATALOG — pełna lista akcji z opisami po polsku
+  - executeAction() — dispatcher do engine/senderów
+- [x] Domyślne strony:
+  - **SHOW CONTROL:** Play, Pauza, Poprzedni, Następny, Goto, Step Next, Take Shot, Hold, Step Mode, FTB
+  - **SHOTBOX:** CAM 1-8 PGM (czerwony=LIVE) + PVW (zielony=preview), CUT, AUTO, DSK, Makro
+  - **INFO/TIMERY:** Aktualny Cue, Następny Cue, Remaining (countdown), Elapsed, Timecode, Zegar
+  - **AUDIO/MEDIA:** Media Play/Stop, Głośność +/-, PTZ Preset 1-4
+  - **NAWIGACJA:** przełączanie między stronami (przyciski na krawędziach)
+- [x] `electron/streamdeck/streamdeck-feedback.ts` — NOWY: real-time feedback:
+  - Podpięcie do engine events (state-changed) + timer 200ms (timesnap)
+  - Tally: czerwony=PGM (LIVE), zielony=PVW (preview), szary=nieaktywny
+  - Countdown: biały(>60s) → żółty(<60s) → czerwony(<30s) → migający(<10s, toggle 500ms) → overtime
+  - Dynamiczny tekst: nazwa cue, timer MM:SS, timecode HH:MM:SS:FF, zegar
+- [x] Okno obsługi StreamDeck HID:
+  - Wykrywanie podłączonych StreamDecków (lista urządzeń z modelem i serialem)
+  - Wizualna mapa przycisków (grid odpowiadający modelowi, np. 5×3 dla MK.2)
+  - Kliknięcie na przycisk → dropdown z 23 akcjami do przypisania (opisy po polsku)
+  - Parametry akcji (nr kamery, nr presetu, nr strony) — dodatkowy input
+  - Strony — dodawanie nowych, usuwanie, zmiana nazwy, przełączanie aktywnej
+  - Brightness slider (0-100%)
   - Przycisk "Resetuj do domyślnych"
-- [ ] IPC: nextime:streamdeckList, nextime:streamdeckConnect, nextime:streamdeckSetButton, nextime:streamdeckGetConfig
-- [ ] Preload + electron.d.ts — typy StreamDeck
-- [ ] Testy: ~20
+  - Status połączenia (zielona/czerwona kropka + szczegóły: model, S/N, firmware, ikony)
+- [x] `electron/ipc/streamdeck-ipc.ts` — NOWY: IPC handlery:
+  - nextime:streamdeckGetStatus, streamdeckListDevices, streamdeckOpen, streamdeckClose
+  - streamdeckGetPages, streamdeckSetButtonAction, streamdeckSetActivePage
+  - streamdeckAddPage, streamdeckRemovePage, streamdeckRenamePage
+  - streamdeckSetBrightness, streamdeckResetDefaults
+- [x] `electron/preload.ts` — 12 nowych metod streamdeck*
+- [x] `src/types/electron.d.ts` — typy StreamDeck API (StreamDeckIpcStatus, StreamDeckListEntry, StreamDeckPagesConfig, StreamDeckButtonConfig)
+- [x] `electron/settings-manager.ts` — sekcja `streamdeck: StreamDeckSettings` (enabled, brightness, pagesJson)
+- [x] `electron/main.ts` — inicjalizacja StreamDeckManager, feedback, IPC, auto-connect, key-down→executeAction, cleanup before-quit
+- [x] `src/components/SettingsPanel/StreamDeckTab.tsx` — NOWY: zakładka UI
+- [x] `src/components/SettingsPanel/SettingsPanel.tsx` — dodana zakładka "StreamDeck"
+- [x] Testy: 35 nowych (4 pliki):
+  - `tests/unit/streamdeck-actions.test.ts` — 8 testów (executeAction, ACTION_CATALOG)
+  - `tests/unit/streamdeck-button-renderer.test.ts` — 13 testów (render, formatMmSs, formatHhMmSsFf)
+  - `tests/unit/streamdeck-manager.test.ts` — 8 testów (status, lifecycle, graceful no-device)
+  - `tests/unit/streamdeck-pages.test.ts` — 6 testów (defaultPages, createEmptyPage, nawigacja)
+
+**Statystyki Fazy 37:** 1030 testów (995 + 35 nowych), zero błędów tsc
+
+### Znane problemy do poprawienia (Faza 37B):
+- [ ] Przycisk "Resetuj do domyślnych" — wymaga debugowania, może nie działać po pierwszym połączeniu
+- [ ] Play/Pause propagacja do vMix — zaimplementowana ale wymaga testów z prawdziwym vMix (resumePlayback/pausePlayback)
+- [ ] Next/Prev propagacja do vMix (nextInput/prevInput) — wymaga testów
+- [ ] Spacja (Play/Pause) → vMix — listener state-changed dodany, wymaga weryfikacji
+- [ ] Zapisywanie konfiguracji stron do DB — po restarcie powinny się wczytywać zapisane strony użytkownika (teraz zawsze generuje domyślne)
+- [ ] Edycja przycisków w UI — panel boczny może wymagać poprawek UX (scrollowanie, pozycjonowanie)
 
 ---
 
@@ -1714,7 +1758,7 @@ Dwie opcje sterowania: 1) natywnie (ta faza), 2) przez Companion (Faza 34).
 | 34 (Companion API) | ~15 | ŚREDNI |
 | 35 (Team Notes) | ~12 | NISKI |
 | 36 (Waveform) | ~8 | NISKI |
-| 37 (Natywny StreamDeck) | ~20 | WYSOKI |
-| **SUMA** | **~217** | |
+| 37 (Natywny StreamDeck) | 35 | WYSOKI | UKOŃCZONA |
+| **SUMA** | **~252** | |
 
-Po Fazie 37: **~927 testów** (710 + 217), pełna paryteta z CuePilot Pro + killer features (OBS/vMix/natywny StreamDeck).
+Po Fazie 37: **1030 testów**, pełna paryteta z CuePilot Pro + killer features (OBS/vMix/natywny StreamDeck).

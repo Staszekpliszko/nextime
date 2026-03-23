@@ -26,6 +26,10 @@ import type { Cell } from '../../electron/db/repositories/cell.repo';
 import type { PrivateNote } from '../../electron/db/repositories/private-note.repo';
 import type { TeamNote, CreateTeamNoteInput, UpdateTeamNoteInput } from '../../electron/db/repositories/team-note.repo';
 import type { CompanionInfo } from '../../electron/network-info';
+import type { StreamDeckIpcStatus } from '../../electron/ipc/streamdeck-ipc';
+import type { StreamDeckListEntry } from '../../electron/streamdeck/streamdeck-manager';
+import type { StreamDeckPagesConfig } from '../../electron/streamdeck/streamdeck-pages';
+import type { StreamDeckButtonConfig } from '../../electron/streamdeck/streamdeck-actions';
 
 /** Rundown summary z IPC — lekki obiekt do listy */
 export interface RundownSummary {
@@ -273,6 +277,20 @@ export interface NextimeApi {
   openOutputWindow(shareToken: string, outputName: string): Promise<{ ok: boolean; windowId: string }>;
   closeWindow(windowId: string): Promise<{ ok: boolean }>;
   getOpenWindows(): Promise<OpenWindowInfo[]>;
+
+  // ── StreamDeck (Faza 37) ──────────────────────────────────
+  streamdeckGetStatus(): Promise<StreamDeckIpcStatus>;
+  streamdeckListDevices(): Promise<StreamDeckListEntry[]>;
+  streamdeckOpen(devicePath?: string): Promise<{ ok: boolean; error?: string }>;
+  streamdeckClose(): Promise<void>;
+  streamdeckGetPages(): Promise<StreamDeckPagesConfig>;
+  streamdeckSetButtonAction(pageIndex: number, keyIndex: number, buttonConfig: StreamDeckButtonConfig): Promise<{ ok: boolean }>;
+  streamdeckSetActivePage(pageIndex: number): Promise<{ ok: boolean }>;
+  streamdeckAddPage(name: string): Promise<{ ok: boolean; pageIndex: number }>;
+  streamdeckRemovePage(pageIndex: number): Promise<{ ok: boolean }>;
+  streamdeckRenamePage(pageIndex: number, name: string): Promise<{ ok: boolean }>;
+  streamdeckSetBrightness(percent: number): Promise<void>;
+  streamdeckResetDefaults(): Promise<{ ok: boolean }>;
 }
 
 declare global {

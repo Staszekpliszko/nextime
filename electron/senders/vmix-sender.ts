@@ -215,6 +215,55 @@ export class VmixSender extends EventEmitter {
     await this.sendFunctionRaw(`Function=SetVolume&Input=${input}&Value=${clamped}`);
   }
 
+  // ── Transport — sterowanie odtwarzaniem (Faza 37) ────
+
+  /** Wznawia odtwarzanie aktywnego inputu na PGM */
+  async resumePlayback(): Promise<void> {
+    // vMix: Play na aktualnym PGM
+    const pgm = this._state?.activeInput;
+    if (pgm !== undefined && pgm !== null) {
+      await this.sendFunction('Play', pgm);
+    }
+  }
+
+  /** Pauzuje odtwarzanie aktywnego inputu na PGM */
+  async pausePlayback(): Promise<void> {
+    const pgm = this._state?.activeInput;
+    if (pgm !== undefined && pgm !== null) {
+      await this.sendFunction('Pause', pgm);
+    }
+  }
+
+  /** Przejście do następnego inputu (CUT na PGM+1) */
+  async nextInput(): Promise<void> {
+    const pgm = this._state?.activeInput;
+    if (pgm !== undefined && pgm !== null) {
+      const inputs = this.getInputList();
+      const currentIdx = inputs.findIndex(i => i.number === pgm);
+      if (currentIdx >= 0 && currentIdx < inputs.length - 1) {
+        const nextInput = inputs[currentIdx + 1];
+        if (nextInput) {
+          await this.cut(nextInput.number);
+        }
+      }
+    }
+  }
+
+  /** Przejście do poprzedniego inputu (CUT na PGM-1) */
+  async prevInput(): Promise<void> {
+    const pgm = this._state?.activeInput;
+    if (pgm !== undefined && pgm !== null) {
+      const inputs = this.getInputList();
+      const currentIdx = inputs.findIndex(i => i.number === pgm);
+      if (currentIdx > 0) {
+        const prevInput = inputs[currentIdx - 1];
+        if (prevInput) {
+          await this.cut(prevInput.number);
+        }
+      }
+    }
+  }
+
   // ── Odczyt stanu ────────────────────────────────────────
 
   /** Pobiera listę inputów (z cache lub live) */

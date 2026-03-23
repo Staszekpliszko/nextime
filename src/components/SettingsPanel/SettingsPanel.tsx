@@ -3,10 +3,11 @@ import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings,
 import { ObsSettingsTab } from './ObsSettingsTab';
 import { VmixSettingsTab } from './VmixSettingsTab';
 import { CompanionTab } from './CompanionTab';
+import { StreamDeckTab } from './StreamDeckTab';
 
 // ── Typy ────────────────────────────────────────────────
 
-type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'vmix' | 'ltc' | 'gpi' | 'ptz' | 'companion';
+type TabId = 'general' | 'osc' | 'midi' | 'atem' | 'obs' | 'vmix' | 'ltc' | 'gpi' | 'ptz' | 'companion' | 'streamdeck';
 
 interface Tab {
   id: TabId;
@@ -24,6 +25,7 @@ const TABS: Tab[] = [
   { id: 'gpi', label: 'GPI' },
   { id: 'ptz', label: 'PTZ' },
   { id: 'companion', label: 'Companion' },
+  { id: 'streamdeck', label: 'StreamDeck' },
 ];
 
 interface SettingsPanelProps {
@@ -69,7 +71,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center" onClick={onClose}>
       <div
-        className="bg-slate-800 rounded-lg shadow-xl w-[720px] max-h-[85vh] flex flex-col"
+        className={`bg-slate-800 rounded-lg shadow-xl max-h-[90vh] flex flex-col transition-all ${
+          activeTab === 'streamdeck' ? 'w-[1100px]' : 'w-[720px]'
+        }`}
         onClick={e => e.stopPropagation()}
       >
         {/* Nagłówek */}
@@ -115,6 +119,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             {activeTab === 'gpi' && <GpiTab settings={settings.gpi} onSave={v => saveSection('gpi', v)} />}
             {activeTab === 'ptz' && <PtzTab settings={settings.ptz} onSave={v => saveSection('ptz', v)} />}
             {activeTab === 'companion' && <CompanionTab />}
+            {activeTab === 'streamdeck' && <StreamDeckTab />}
           </div>
         </div>
       </div>

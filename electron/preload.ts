@@ -635,4 +635,53 @@ contextBridge.exposeInMainWorld('nextime', {
   /** Pobiera listę otwartych dodatkowych okien */
   getOpenWindows: (): Promise<unknown[]> =>
     ipcRenderer.invoke('nextime:getOpenWindows'),
+
+  // ── StreamDeck (Faza 37) ─────────────────────────────────
+  /** Pobiera status StreamDecka + konfigurację stron */
+  streamdeckGetStatus: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:streamdeckGetStatus'),
+
+  /** Lista podłączonych StreamDecków */
+  streamdeckListDevices: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('nextime:streamdeckListDevices'),
+
+  /** Otwiera urządzenie StreamDeck */
+  streamdeckOpen: (devicePath?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:streamdeckOpen', devicePath),
+
+  /** Zamyka urządzenie StreamDeck */
+  streamdeckClose: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:streamdeckClose'),
+
+  /** Pobiera konfigurację stron */
+  streamdeckGetPages: (): Promise<unknown> =>
+    ipcRenderer.invoke('nextime:streamdeckGetPages'),
+
+  /** Ustawia akcję przycisku */
+  streamdeckSetButtonAction: (pageIndex: number, keyIndex: number, buttonConfig: unknown): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:streamdeckSetButtonAction', pageIndex, keyIndex, buttonConfig),
+
+  /** Ustawia aktywną stronę */
+  streamdeckSetActivePage: (pageIndex: number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:streamdeckSetActivePage', pageIndex),
+
+  /** Dodaje nową stronę */
+  streamdeckAddPage: (name: string): Promise<{ ok: boolean; pageIndex: number }> =>
+    ipcRenderer.invoke('nextime:streamdeckAddPage', name),
+
+  /** Usuwa stronę */
+  streamdeckRemovePage: (pageIndex: number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:streamdeckRemovePage', pageIndex),
+
+  /** Zmienia nazwę strony */
+  streamdeckRenamePage: (pageIndex: number, name: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:streamdeckRenamePage', pageIndex, name),
+
+  /** Ustawia jasność StreamDecka */
+  streamdeckSetBrightness: (percent: number): Promise<void> =>
+    ipcRenderer.invoke('nextime:streamdeckSetBrightness', percent),
+
+  /** Resetuje konfigurację stron do domyślnych */
+  streamdeckResetDefaults: (): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('nextime:streamdeckResetDefaults'),
 });

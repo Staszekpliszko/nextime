@@ -77,6 +77,15 @@ export interface VisionSettings {
   targetSwitcher: 'atem' | 'obs' | 'vmix' | 'none';
 }
 
+export interface StreamDeckSettings {
+  /** Czy auto-connect przy starcie */
+  enabled: boolean;
+  /** Jasność 0-100 */
+  brightness: number;
+  /** Konfiguracja stron — JSON serializowany */
+  pagesJson: string;
+}
+
 export interface AllSettings {
   osc: OscSettings;
   midi: MidiSettings;
@@ -87,6 +96,7 @@ export interface AllSettings {
   obs: ObsSettings;
   vmix: VmixSettings;
   vision: VisionSettings;
+  streamdeck: StreamDeckSettings;
 }
 
 // ── Domyślne wartości ───────────────────────────────────
@@ -101,6 +111,7 @@ const DEFAULTS: AllSettings = {
   obs: { ip: '127.0.0.1', port: 4455, password: '', enabled: false, autoSwitch: true, sceneMap: {} },
   vmix: { ip: '127.0.0.1', port: 8088, enabled: false, autoSwitch: true, inputMap: {}, transitionType: 'Cut', transitionDuration: 0 },
   vision: { targetSwitcher: 'none' },
+  streamdeck: { enabled: false, brightness: 70, pagesJson: '' },
 };
 
 // ── Typ sekcji ──────────────────────────────────────────

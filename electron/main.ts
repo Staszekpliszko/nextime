@@ -19,6 +19,12 @@ import { loadSchemas as loadOscSchemas } from './osc-schemas/schema-loader';
 import { seedDemoData } from './db/seed-demo';
 import { exportRundownToJson, importRundownFromJson } from './export-import';
 import { getCompanionInfo } from './network-info';
+import { StreamDeckManager } from './streamdeck/streamdeck-manager';
+import { StreamDeckFeedback } from './streamdeck/streamdeck-feedback';
+import { getDefaultPages } from './streamdeck/streamdeck-pages';
+import { executeAction } from './streamdeck/streamdeck-actions';
+import type { StreamDeckPagesConfig } from './streamdeck/streamdeck-pages';
+import { registerStreamDeckIpcHandlers, updatePagesConfigRef, getCurrentPagesConfig } from './ipc/streamdeck-ipc';
 import { probeMediaFile, generateWaveform, MediaIpcBridge } from './media';
 import {
   UndoManager,
@@ -58,6 +64,9 @@ let settingsManager: SettingsManager | null = null;
 let windowManager: WindowManager | null = null;
 let mediaIpcBridge: MediaIpcBridge | null = null;
 let wsPort = 3141;
+let streamDeckManager: StreamDeckManager | null = null;
+let streamDeckFeedback: StreamDeckFeedback | null = null;
+let streamDeckPagesConfig: StreamDeckPagesConfig | null = null;
 
 // Repozytoria — inicjalizowane po otwarciu bazy
 let rundownRepo: ReturnType<typeof createRundownRepo>;
@@ -213,6 +222,26 @@ async function initServices(): Promise<void> {
     engine!.feedExternalTc(frames);
   });
 
+  // 7b. Propagacja Play/Pause do aktywnego switchera (vMix/OBS) — Faza 37
+  // Gdy engine zmienia stan is_playing, wyślij odpowiednią komendę do switchera
+  let lastIsPlaying: boolean | null = null;
+  engine.on('state-changed', (state: { is_playing: boolean } | null) => {
+    if (!state || !settingsManager || !senderManager) return;
+    const isPlaying = state.is_playing;
+    if (isPlaying === lastIsPlaying) return; // bez zmian
+    lastIsPlaying = isPlaying;
+
+    const target = settingsManager.getSection('vision')?.targetSwitcher ?? 'none';
+    if (target === 'vmix') {
+      if (isPlaying) {
+        senderManager.vmix.resumePlayback().catch(() => {});
+      } else {
+        senderManager.vmix.pausePlayback().catch(() => {});
+      }
+    }
+    // OBS nie ma globalnego play/pause — pomijamy
+  });
+
   // 8. ATEM event wiring — broadcast statusu do WS klientów
   senderManager.atem.on('connected', () => {
     wsServer?.broadcastAtemStatus(senderManager!.atem.getStatus());
@@ -231,6 +260,67 @@ async function initServices(): Promise<void> {
   if (wsServer) {
     wsServer.onAtemCut = (input: number) => senderManager!.atem.performCut(input);
     wsServer.onAtemPreview = (input: number) => senderManager!.atem.setPreview(input);
+  }
+
+  // 9. StreamDeck Manager (Faza 37) — natywne USB HID
+  streamDeckManager = new StreamDeckManager();
+  streamDeckFeedback = new StreamDeckFeedback();
+  streamDeckPagesConfig = getDefaultPages(15); // domyślnie MK.2 layout
+
+  // Podpięcie eventów przycisków → akcje
+  // UWAGA: używamy getCurrentPages() z IPC żeby zawsze mieć aktualną referencję
+  // (IPC handler może zmienić _pagesConfig przez reset/edycję)
+  streamDeckManager.on('key-down', (keyIndex: number) => {
+    if (!engine || !senderManager) return;
+    // Pobierz aktualną konfigurację z IPC modułu (nie z lokalnej zmiennej!)
+    const currentConfig = getCurrentPagesConfig() ?? streamDeckPagesConfig;
+    if (!currentConfig) return;
+    const page = currentConfig.pages[currentConfig.activePage];
+    if (!page) return;
+    const btnConfig = page.buttons[keyIndex];
+    if (!btnConfig) return;
+
+    console.log(`[StreamDeck key-down] key=${keyIndex}, action=${btnConfig.action}, label="${btnConfig.label}"`);
+
+    executeAction(btnConfig, {
+      engine,
+      senderManager,
+      settingsManager: settingsManager ?? undefined,
+      onPageChange: (pageIndex: number) => {
+        if (!streamDeckPagesConfig) return;
+        if (pageIndex >= 0 && pageIndex < streamDeckPagesConfig.pages.length) {
+          streamDeckPagesConfig.activePage = pageIndex;
+          updatePagesConfigRef(streamDeckPagesConfig);
+          streamDeckFeedback?.updatePagesConfig(streamDeckPagesConfig);
+        }
+      },
+    });
+  });
+
+  // Auto-connect jeśli enabled w ustawieniach
+  const sdSettings = settingsManager!.getSection('streamdeck');
+  if (sdSettings.enabled) {
+    // Wczytaj strony z ustawień
+    if (sdSettings.pagesJson) {
+      try {
+        const parsed = JSON.parse(sdSettings.pagesJson) as StreamDeckPagesConfig;
+        if (parsed.pages && parsed.pages.length > 0) {
+          streamDeckPagesConfig = parsed;
+        }
+      } catch {
+        // Ignoruj — użyj domyślnych
+      }
+    }
+
+    streamDeckManager.open().then(async (success) => {
+      if (success && streamDeckManager && streamDeckFeedback && streamDeckPagesConfig && engine && senderManager) {
+        streamDeckFeedback.attach(engine, senderManager, streamDeckManager, streamDeckPagesConfig);
+        await streamDeckManager.setBrightness(sdSettings.brightness);
+        console.log('[NextTime] StreamDeck auto-connected');
+      }
+    }).catch(err => {
+      console.log('[NextTime] StreamDeck auto-connect nieudany:', err instanceof Error ? err.message : err);
+    });
   }
 }
 
@@ -260,6 +350,11 @@ function registerIpcHandlers(): void {
   // Faza 19: Window IPC (zarządzanie oknami prompter/output)
   windowManager = new WindowManager(PRELOAD_PATH);
   registerWindowIpcHandlers(windowManager, () => 3142);
+
+  // Faza 37: StreamDeck IPC
+  if (streamDeckManager && streamDeckFeedback && streamDeckPagesConfig && settingsManager && engine && senderManager) {
+    registerStreamDeckIpcHandlers(streamDeckManager, streamDeckFeedback, streamDeckPagesConfig, settingsManager, engine, senderManager);
+  }
 
   ipcMain.handle('nextime:getRundowns', () => {
     const rundowns = rundownRepo.findAll();
@@ -1505,6 +1600,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', async () => {
   // Cleanup: zamknij wszystkie serwisy
+  if (streamDeckFeedback) streamDeckFeedback.detach();
+  if (streamDeckManager) await streamDeckManager.close();
   if (windowManager) windowManager.closeAll();
   if (senderManager) senderManager.destroy();
   if (engine) engine.destroy();

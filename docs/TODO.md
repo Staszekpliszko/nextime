@@ -1646,11 +1646,20 @@ Po Fazie 22: **710 testów** (696 unit/integration + 14 E2E), pełna integracja 
 
 ---
 
-## Faza 36 — Waveform Preview w Timeline [PLANOWANA]
+## Faza 36 — Waveform Preview w Timeline [UKOŃCZONA]
 
-- [ ] `WaveformCanvas.tsx` — canvas polyline z playhead overlay
-- [ ] `MediaCueBlock.tsx` — blok media cue z waveform
-- [ ] Testy: ~8
+- [x] `src/components/Timeline/WaveformCanvas.tsx` — NOWY: canvas 2D z symetrycznym polyline waveform + playhead overlay
+- [x] `src/components/Timeline/TimelineCueBlock.tsx` — dodane propsy waveformData i playheadPosition, renderowanie WaveformCanvas wycentrowanego w bloku
+- [x] `src/components/Timeline/TimelineTrack.tsx` — waveformMap z duration, wycinanie fragmentu waveformu przy skracaniu bloku (nie ściska się!)
+- [x] `src/components/Timeline/Timeline.tsx` — ładowanie waveform data z MediaFiles, auto-generowanie brakujących waveformów (ffprobe), obsługa cue bez rekordu w bibliotece
+- [x] `src/components/Timeline/TimelineCueDialog.tsx` — auto-ustawianie TC Out na czas trwania pliku media przy wyborze z biblioteki lub przeglądania
+- [x] `src/components/Timeline/TimelineTrack.tsx` — resize wysokości tracku (drag na dolnej krawędzi, min 32px, max 200px, zapis do bazy)
+- [x] `electron/media/ffprobe-utils.ts` — fix: użycie best_effort_timestamp_time zamiast pkt_pts_time (kompatybilność ffprobe)
+- [x] `electron/main.ts` — wyłączenie domyślnego zoomu Electron (Ctrl++/Ctrl+-) — skróty obsługuje oś czasu
+- [x] `tests/unit/waveform-canvas.test.ts` — NOWY: 10 testów (normalizacja, clamping, downsampling, interpolacja)
+- [x] `tests/unit/media-cue-waveform.test.ts` — NOWY: 11 testów (playhead position, waveform mapping, edge cases)
+
+**Statystyki Fazy 36:** 995 testów (974 + 21 nowych), zero błędów tsc
 
 ---
 

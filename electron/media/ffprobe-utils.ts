@@ -173,11 +173,12 @@ export function generateWaveform(filePath: string, samples: number = 200): Promi
       const duration = metadata.format.duration;
       const segmentDuration = duration / samples;
 
-      // Jedno wywołanie ffprobe — pobierz pkt_pts_time i pkt_size dla klatek audio
+      // Jedno wywołanie ffprobe — pobierz timestamp i pkt_size dla klatek audio
+      // Używamy best_effort_timestamp_time zamiast pkt_pts_time (kompatybilność z różnymi wersjami ffprobe)
       const singlePassArgs = [
         '-v', 'error',
         '-select_streams', 'a:0',
-        '-show_entries', 'frame=pkt_pts_time,pkt_size',
+        '-show_entries', 'frame=best_effort_timestamp_time,pkt_size',
         '-of', 'csv=p=0',
         filePath,
       ];

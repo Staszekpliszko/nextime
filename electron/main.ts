@@ -1427,6 +1427,14 @@ function createWindow(): void {
     },
   });
 
+  // Faza 36: wyłącz domyślny zoom Electrona (Ctrl++/Ctrl+-/Ctrl+0)
+  // Te skróty obsługuje Timeline do zmiany skali osi czasu
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if ((input.control || input.meta) && (input.key === '+' || input.key === '-' || input.key === '=' || input.key === '0')) {
+      _event.preventDefault();
+    }
+  });
+
   // Faza 24: podłącz mainWindow do MediaIpcBridge
   if (mediaIpcBridge) {
     mediaIpcBridge.setMainWindow(mainWindow);

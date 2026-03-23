@@ -176,21 +176,40 @@ export function TimelineCueDialog({
     });
   }, [cueType]);
 
+  // Faza 36: ustaw TC Out na podstawie duration pliku media
+  const autoSetTcOutFromDuration = useCallback((durationFrames: number) => {
+    if (durationFrames > 0) {
+      const tcIn = timecodeToFrames(tcInStr, fps);
+      const tcOut = tcIn + durationFrames;
+      setTcOutStr(framesToTimecode(tcOut, fps));
+    }
+  }, [tcInStr, fps]);
+
   // Faza 24: wybierz plik z biblioteki mediów (dropdown)
   const handleMediaLibrarySelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const filePath = e.target.value;
     if (filePath) {
       setMediaFilePath(filePath);
+      // Faza 36: auto-duration — ustaw TC Out na czas trwania pliku
+      const mediaFile = mediaLibraryFiles.find(f => f.file_path === filePath);
+      if (mediaFile && mediaFile.duration_frames > 0) {
+        autoSetTcOutFromDuration(mediaFile.duration_frames);
+      }
     }
-  }, []);
+  }, [mediaLibraryFiles, autoSetTcOutFromDuration]);
 
   // Faza 24: otwórz natywny dialog Electron do wyboru pliku
   const handleBrowseMediaFile = useCallback(async () => {
     const result = await window.nextime.selectMediaFile();
     if (result) {
       setMediaFilePath(result.filePath);
+      // Faza 36: auto-duration — probe plik i ustaw TC Out
+      const probe = await window.nextime.probeMediaFile(result.filePath);
+      if (probe && probe.durationFrames > 0) {
+        autoSetTcOutFromDuration(probe.durationFrames);
+      }
     }
-  }, []);
+  }, [autoSetTcOutFromDuration]);
 
   // Zamknij na Escape
   useEffect(() => {

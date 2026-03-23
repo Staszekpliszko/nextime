@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
 import { useTimelinePlayhead } from '@/hooks/usePlayback';
 import { TimelineRuler } from './TimelineRuler';
@@ -47,6 +47,79 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
 
   // Faza 6: interpolowany playhead dla płynnego ruchu
   const interpolatedFrames = useTimelinePlayhead();
+
+  // Faza 36: ładowanie waveform data dla media cues
+  // Mapa: klucz → { waveform, durationFrames } — potrzebne do wycinania fragmentu
+  const [waveformMap, setWaveformMap] = useState<Map<string, { waveform: number[]; durationFrames: number }>>(new Map());
+
+  // Faza 36: licznik wymuszający przeładowanie waveform (np. po dodaniu pliku media)
+  const [waveformReloadKey, setWaveformReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!activeActId) {
+      setWaveformMap(new Map());
+      return;
+    }
+
+    let cancelled = false;
+    type WaveformEntry = { waveform: number[]; durationFrames: number };
+    window.nextime.getMediaFiles(activeActId).then(async (files) => {
+      if (cancelled) return;
+      const map = new Map<string, WaveformEntry>();
+      const typedFiles = files as Array<{ id: string; file_path: string; duration_frames: number; waveform_data?: number[] }>;
+
+      for (const file of typedFiles) {
+        const entry: WaveformEntry = { waveform: [], durationFrames: file.duration_frames };
+        if (file.waveform_data && file.waveform_data.length > 0) {
+          entry.waveform = file.waveform_data;
+        } else {
+          // Brak waveform — wygeneruj automatycznie (ffprobe) i zapisz do bazy
+          try {
+            const waveform = await window.nextime.generateWaveform(file.file_path, 200);
+            if (cancelled) return;
+            if (waveform && waveform.length > 0) {
+              await window.nextime.updateMediaFileDuration(file.id, file.duration_frames, waveform);
+              entry.waveform = waveform;
+            }
+          } catch {
+            // ffprobe niedostępny lub plik uszkodzony — ignoruj
+          }
+        }
+        if (entry.waveform.length > 0) {
+          map.set(file.file_path, entry);
+          map.set(file.id, entry);
+        }
+      }
+
+      if (cancelled) return;
+
+      // Sprawdź media cue'y bez rekordu w bibliotece — generuj waveform na żywo
+      const { timelineCues: currentCues } = usePlaybackStore.getState();
+      for (const cue of currentCues) {
+        if (cue.type !== 'media') continue;
+        const filePath = (cue.data as { file_path?: string }).file_path;
+        if (!filePath || map.has(filePath)) continue;
+        try {
+          const waveform = await window.nextime.generateWaveform(filePath, 200);
+          if (cancelled) return;
+          if (waveform && waveform.length > 0) {
+            // Nie znamy duration — probe
+            const probe = await window.nextime.probeMediaFile(filePath);
+            if (cancelled) return;
+            map.set(filePath, { waveform, durationFrames: probe?.durationFrames ?? 0 });
+          }
+        } catch {
+          // ignoruj
+        }
+      }
+
+      setWaveformMap(map);
+    }).catch((err: unknown) => {
+      console.error('[Waveform] Błąd ładowania:', err);
+    });
+
+    return () => { cancelled = true; };
+  }, [activeActId, waveformReloadKey]);
 
   const actDuration = playback?.tc_mode === 'timeline_frames'
     ? playback.tc.act_duration_frames
@@ -211,6 +284,15 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
     }
   }, []);
 
+  // Faza 36: zmiana wysokości tracku
+  const handleTrackResize = useCallback(async (trackId: string, newHeightPx: number) => {
+    try {
+      await window.nextime.updateTrack(trackId, { height_px: newHeightPx });
+    } catch (err) {
+      console.error('[Timeline] Błąd zmiany wysokości tracku:', err);
+    }
+  }, []);
+
   // Double-click na pustym miejscu tracka → tworzenie cue
   const handleTrackDoubleClick = useCallback((trackId: string, tcInFrames: number) => {
     if (onCreateCue) {
@@ -277,6 +359,8 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
               durationFrames={actDuration}
               activeCueId={activeVisionCue?.id}
               selectedCueId={selectedTimelineCueId ?? undefined}
+              waveformMap={waveformMap}
+              currentTcFrames={interpolatedFrames}
               getCueColor={getCueColor}
               getCueLabel={getCueLabel}
               onCueDrag={handleCueDrag}
@@ -287,6 +371,7 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
               onTrackDelete={handleDeleteTrack}
               onTrackRename={handleRenameTrack}
               onTrackDoubleClick={handleTrackDoubleClick}
+              onTrackResize={handleTrackResize}
             />
           ))}
 

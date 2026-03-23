@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { TimelineCueSummary } from '@/store/playback.store';
+import { WaveformCanvas } from './WaveformCanvas';
 
 interface TimelineCueBlockProps {
   cue: TimelineCueSummary;
@@ -8,6 +9,10 @@ interface TimelineCueBlockProps {
   label: string;
   isActive: boolean;
   isSelected?: boolean;
+  /** Dane waveformu (number[] z ffprobe) — tylko dla media cues */
+  waveformData?: number[];
+  /** Znormalizowana pozycja playhead wewnątrz bloku (0–1) */
+  playheadPosition?: number;
   onDragEnd?: (cueId: string, newTcIn: number, newTcOut: number | undefined) => void;
   onDoubleClick?: (cue: TimelineCueSummary) => void;
   onContextMenu?: (cue: TimelineCueSummary, x: number, y: number) => void;
@@ -23,6 +28,8 @@ export function TimelineCueBlock({
   label,
   isActive,
   isSelected,
+  waveformData,
+  playheadPosition,
   onDragEnd,
   onDoubleClick,
   onContextMenu,
@@ -140,6 +147,19 @@ export function TimelineCueBlock({
       onContextMenu={handleContextMenu}
       title={label}
     >
+      {/* Waveform overlay — cienki pasek wycentrowany w pionie */}
+      {waveformData && waveformData.length > 0 && !isPoint && width > 10 && (
+        <div className="absolute inset-0 flex items-center pointer-events-none">
+          <WaveformCanvas
+            waveformData={waveformData}
+            width={Math.max(width, 2)}
+            height={24}
+            playheadPosition={playheadPosition}
+            color="rgba(255,255,255,0.5)"
+          />
+        </div>
+      )}
+
       {/* Etykieta widoczna przy szerszych blokach */}
       {width > 40 && !isPoint && (
         <span className="absolute inset-0 px-1 text-[10px] text-white truncate leading-6 pointer-events-none">

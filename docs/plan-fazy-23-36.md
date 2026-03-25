@@ -300,9 +300,10 @@ Dwie opcje sterowania StreamDeckiem: 1) natywnie (ta faza), 2) przez Companion (
 | 36 | Waveform Preview | 14 | ~8 | — | 1 |
 | 37 | Natywny StreamDeck | — | ~20 | @elgato-stream-deck/node, sharp | 1-2 |
 | 41 | LTC Audio Reader (prawdziwy) | 8 | ~25 | — (Web Audio API) | 2-3 |
-| **RAZEM** | **16 faz** | | **~242** | **5 pakietów** | **17-20** |
+| 42 | Timeline Thumbnails (vMix/OBS/ffmpeg) | — | ~20 | — (sharp, obs-ws, ffmpeg już w projekcie) | 2 |
+| **RAZEM** | **17 faz** | | **~262** | **5 pakietów** | **19-22** |
 
-**Po ukończeniu:** ~952 testów (710 + 242)
+**Po ukończeniu:** ~972 testów (710 + 262)
 
 ---
 
@@ -583,6 +584,236 @@ Klasa w renderer process:
 z wejściem liniowym (np. Focusrite Scarlett, Behringer UMC, wbudowane wejście mic z adapterem XLR→TRS).
 
 **Testy:** ~25 nowych | **Sesje:** 2-3
+
+---
+
+## FAZA 42 — Timeline Thumbnails / Preview Frames (vMix, OBS, ffmpeg)
+**Braki:** Brak wizualnego podglądu treści na blokach timeline — użytkownik widzi tylko kolor i label.
+**Zależności:** Faza 26 (vMix), Faza 25 (OBS), Faza 23 (ffprobe/ffmpeg)
+**Deps npm:** brak nowych (sharp ^0.34.5 już w projekcie, obs-websocket-js ^5.0.8 ma GetSourceScreenshot, ffmpeg już bundled)
+
+### Kontekst i cel
+
+Na profesjonalnej osi czasu (NLE-style) bloki powinny pokazywać **miniaturki (thumbnails)**
+treści — kadry z kamery, klatki z pliku video, screenshot sceny OBS.
+Daje to reżyserowi natychmiastowy podgląd: "ten blok = ta kamera / ta scena / ten klip".
+
+**Źródła thumbnails:**
+
+| Typ cue | Źródło thumbnails | Metoda |
+|---|---|---|
+| **vision** (vMix) | vMix HTTP API: `Snapshot` lub `SnapshotInput` | `GET /api/?Function=SnapshotInput&Input=N&Value=path.png` → pobranie pliku PNG |
+| **vision** (OBS) | obs-websocket-js v5: `GetSourceScreenshot` | `call('GetSourceScreenshot', { sourceName, imageFormat: 'png', imageWidth: 160 })` → base64 PNG |
+| **vision** (ATEM) | Brak API screenshot w protokole ATEM | Fallback: kolorowy blok z numerem kamery (jak teraz) |
+| **media** | ffmpeg: ekstrakcja klatki z pliku | `ffmpeg -ss <tc> -i plik.mp4 -frames:v 1 -vf scale=160:-1 -f image2pipe -` → Buffer PNG |
+| **marker/lyric/osc/midi/gpi** | Nie dotyczy | Bez zmian — tekst/kolor |
+
+### Architektura
+
+```
+Źródło (vMix/OBS/ffmpeg)
+    ↓ pobierz thumbnail (async, cache w pamięci)
+    ↓
+ThumbnailCache (Map<cacheKey, { dataUrl: string, timestamp: number }>)
+    ↓ data:image/png;base64,...
+    ↓
+TimelineCueBlock.tsx — <img> lub CSS background-image w bloku cue
+```
+
+**Cache strategy:**
+- Klucz: `${source}:${inputId}` np. `vmix:3`, `obs:Scena_Intro`, `file:/path/video.mp4:frame125`
+- TTL: 60s dla live źródeł (vMix/OBS), ∞ dla plików (ffmpeg)
+- Max entries: 200 (LRU eviction)
+- Odświeżanie: lazy — generuj thumbnail gdy cue staje się widoczny w viewport
+
+### Zadania (w kolejności priorytetów)
+
+#### 42-A: ffmpeg thumbnail extraction (KRYTYCZNY)
+**Nowy plik:** `electron/media/thumbnail-generator.ts`
+
+```typescript
+interface ThumbnailResult {
+  dataUrl: string;    // data:image/png;base64,...
+  width: number;      // px
+  height: number;     // px
+}
+
+/** Ekstrakcja klatki z pliku video w danym momencie */
+async function extractFrameFromFile(
+  filePath: string,
+  seekMs: number,      // pozycja w ms (0 = pierwsza klatka)
+  width?: number,      // domyślnie 160px
+): Promise<ThumbnailResult | null>
+```
+
+**Implementacja:**
+- Użyj `fluent-ffmpeg` (już w projekcie) z `ffprobe-installer`
+- Pipeline: `ffmpeg -ss <seekMs/1000> -i <filePath> -frames:v 1 -vf scale=<width>:-1 -f image2pipe -c:v png -`
+- Wynik: Buffer PNG → `data:image/png;base64,...`
+- Obsłuż brak ffmpeg (graceful fallback → null)
+- Timeout 5s per thumbnail (unikaj zawieszenia na dużych plikach)
+- Dla audio-only plików: zwróć null (waveform wystarczy)
+
+#### 42-B: vMix snapshot (WYSOKI)
+**Modyfikacja:** `electron/senders/vmix-sender.ts`
+
+Nowa metoda:
+```typescript
+/** Pobiera screenshot inputu vMix jako base64 PNG */
+async getInputThumbnail(inputNumber: number, width?: number): Promise<string | null>
+```
+
+**Implementacja — dwie strategie:**
+
+**Strategia 1 (preferowana): SnapshotInput → plik → odczyt → usunięcie**
+- `GET /api/?Function=SnapshotInput&Input=N&Value=C:\temp\nextime_thumb_N.png`
+- vMix zapisuje PNG na dysku → odczytaj → base64 → usuń plik tymczasowy
+- Wada: wymaga zapisu na dysk, latencja ~200ms
+
+**Strategia 2 (alternatywna): Dynamiczny URL thumbnailUrl (vMix Web Controller)**
+- vMix udostępnia thumbnail przez web controller (port 8088)
+- URL: `http://{ip}:{port}/api/thumbnail/?input={N}&width={W}`
+  (dostępne w nowszych wersjach vMix 27+)
+- Sprawdź dostępność → jeśli działa, użyj (szybsze, bez pliku tymczasowego)
+- Fallback na strategię 1 jeśli 404
+
+#### 42-C: OBS screenshot via obs-websocket-js (WYSOKI)
+**Modyfikacja:** `electron/senders/obs-sender.ts`
+
+Nowa metoda:
+```typescript
+/** Pobiera screenshot sceny lub źródła OBS jako base64 PNG */
+async getSourceScreenshot(
+  sourceName: string,
+  imageWidth?: number,
+): Promise<string | null>
+```
+
+**Implementacja:**
+- obs-websocket-js v5 ma wbudowane `call('GetSourceScreenshot', params)`
+- Parametry: `{ sourceName, imageFormat: 'png', imageWidth: 160, imageHeight: 90 }`
+- Odpowiedź: `{ imageData: 'data:image/png;base64,...' }`
+- Obsłuż: OBS nie połączony → null, źródło nie istnieje → null
+- Rate limit: max 2 requesty/s (OBS może lagować przy częstym screenshot)
+
+#### 42-D: ThumbnailCache — cache w pamięci (WYSOKI)
+**Nowy plik:** `electron/media/thumbnail-cache.ts`
+
+```typescript
+interface CachedThumbnail {
+  dataUrl: string;
+  timestamp: number;
+  source: 'vmix' | 'obs' | 'file';
+}
+
+class ThumbnailCache {
+  private cache: Map<string, CachedThumbnail>;
+  private readonly maxEntries = 200;
+  private readonly ttlMs: Record<string, number> = {
+    vmix: 60_000,   // 60s — odśwież live
+    obs: 60_000,    // 60s — odśwież live
+    file: Infinity, // plik się nie zmienia
+  };
+
+  get(key: string): string | null;
+  set(key: string, dataUrl: string, source: 'vmix' | 'obs' | 'file'): void;
+  invalidate(key: string): void;
+  clear(): void;
+}
+```
+
+- LRU eviction gdy > 200 entries
+- Automatyczne usuwanie expired entries (lazy — przy get)
+
+#### 42-E: IPC + Preload — thumbnail API (ŚREDNI)
+**Modyfikacje:**
+- `electron/main.ts` — nowe IPC handlery:
+  - `nextime:getThumbnail` — `(source: string, id: string, seekMs?: number)` → base64 PNG lub null
+    - source='vmix' → VmixSender.getInputThumbnail()
+    - source='obs' → ObsSender.getSourceScreenshot()
+    - source='file' → extractFrameFromFile()
+  - Routing przez ThumbnailCache (sprawdź cache → miss → generuj → cache → zwróć)
+- `electron/preload.ts`:
+  - `getThumbnail(source: string, id: string, seekMs?: number): Promise<string | null>`
+- `src/types/electron.d.ts` — typ
+
+#### 42-F: TimelineCueBlock — wyświetlanie thumbnailów (ŚREDNI)
+**Modyfikacja:** `src/components/Timeline/TimelineCueBlock.tsx`
+
+- Nowy prop: `thumbnailUrl?: string` (data:image/png;base64,...)
+- Jeśli thumbnailUrl istnieje i blok szerszy niż 30px:
+  - CSS `background-image: url(${thumbnailUrl})`, `background-size: cover`, `background-position: center`
+  - Opcjonalnie: lekki gradient overlay żeby tekst labela był czytelny
+  - `opacity: 0.6` na thumbnail żeby kolor cue nadal był widoczny
+- Dla bloków < 30px: bez thumbnail (za wąskie)
+
+#### 42-G: Timeline/TimelineTrack — ładowanie thumbnailów (ŚREDNI)
+**Modyfikacja:** `src/components/Timeline/Timeline.tsx` i `TimelineTrack.tsx`
+
+- Nowy state: `thumbnailMap: Map<string, string>` (cueId → dataUrl)
+- useEffect: dla widocznych cue'ów typu vision/media — wywołaj `window.nextime.getThumbnail()`
+- Debounce: nie ładuj thumbnailów podczas scroll/zoom (poczekaj 300ms po zatrzymaniu)
+- Intersection Observer lub viewport check: ładuj tylko widoczne cue'y
+- Przekaż `thumbnailUrl` do TimelineCueBlock
+
+**Logika mapowania cue → source/id:**
+```typescript
+function getCueThumbnailParams(cue: TimelineCueSummary): { source: string; id: string; seekMs?: number } | null {
+  if (cue.type === 'vision') {
+    const d = cue.data as { camera_number?: number };
+    // Sprawdź aktywny switcher: vMix → 'vmix', OBS → 'obs', ATEM → null
+    const switcher = usePlaybackStore.getState().activeSwitcher;
+    if (switcher === 'vmix' && d.camera_number) return { source: 'vmix', id: String(d.camera_number) };
+    if (switcher === 'obs' && d.camera_number) return { source: 'obs', id: obsSceneMap[d.camera_number] };
+    return null; // ATEM nie ma screenshot API
+  }
+  if (cue.type === 'media') {
+    const d = cue.data as { file_path?: string; offset_frames?: number };
+    if (!d.file_path) return null;
+    const seekMs = (d.offset_frames ?? 0) / fps * 1000;
+    return { source: 'file', id: d.file_path, seekMs };
+  }
+  return null;
+}
+```
+
+#### 42-H: Odświeżanie thumbnailów live (NISKI)
+- Dla vMix/OBS: odświeżaj thumbnail co 60s (lub po zmianie inputu)
+- Przycisk "Odśwież podglądy" w toolbarze timeline
+- Po zmianie camera_number w dialog → od razu pobierz nowy thumbnail
+- Event `vision-cue-changed` → invalidate cache dla zmienionego inputu
+
+#### 42-I: Testy
+**Nowe pliki testów:**
+- `tests/unit/thumbnail-generator.test.ts`:
+  - Mock fluent-ffmpeg → sprawdź generowanie komendy ffmpeg
+  - Test timeout 5s
+  - Test audio-only → null
+  - Test nieistniejący plik → null
+- `tests/unit/thumbnail-cache.test.ts`:
+  - Test LRU eviction (> 200 entries)
+  - Test TTL expiration (60s dla live, ∞ dla file)
+  - Test invalidate/clear
+  - Test get/set roundtrip
+- `tests/unit/vmix-thumbnail.test.ts`:
+  - Mock HTTP → test getInputThumbnail()
+  - Test brak połączenia → null
+- `tests/unit/obs-thumbnail.test.ts`:
+  - Mock obs-websocket-js → test GetSourceScreenshot
+  - Test brak połączenia → null
+
+### Porównanie z CuePilot Pro po Fazie 42
+
+| Funkcja | CuePilot | NEXTIME (po Fazie 42) |
+|---|---|---|
+| Podgląd kamer na timeline | ❌ (brak thumbnails) | ✅ (vMix + OBS screenshot) |
+| Podgląd media na timeline | ❌ (tylko waveform) | ✅ (ffmpeg frame + waveform) |
+| Live refresh thumbnails | ❌ | ✅ (co 60s, lub na żądanie) |
+| Cache thumbnails | ❌ | ✅ (LRU 200 entries, TTL) |
+
+**Przewaga NEXTIME:** CuePilot nie ma thumbnailów na timeline — to unikalna funkcja.
+
+**Testy:** ~20 nowych | **Sesje:** 2
 
 ---
 

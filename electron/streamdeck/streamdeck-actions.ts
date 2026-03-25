@@ -206,9 +206,16 @@ export function executeAction(
       }
 
       case 'next': {
-        console.log('[StreamDeck] → engine.next() + switcher next');
-        engine.next();
-        // Wyślij Next do aktywnego switchera
+        // Faza 39-B: w trybie timeline → stepToNextCue, w rundown → next
+        const engineState = engine.getState();
+        if (engineState?.mode === 'timeline_frames') {
+          console.log('[StreamDeck] → engine.stepToNextCue() (timeline mode)');
+          engine.stepToNextCue();
+        } else {
+          console.log('[StreamDeck] → engine.next() (rundown mode)');
+          engine.next();
+        }
+        // Switcher next niezależnie od trybu NEXTIME
         const nextTarget = getTargetSwitcher(context);
         if (nextTarget === 'vmix') {
           senderManager.vmix.nextInput().catch(e => console.error('[StreamDeck] vMix next:', e));
@@ -217,9 +224,16 @@ export function executeAction(
       }
 
       case 'prev': {
-        console.log('[StreamDeck] → engine.prev() + switcher prev');
-        engine.prev();
-        // Wyślij Prev do aktywnego switchera
+        // Faza 39-B: w trybie timeline → stepToPrevCue, w rundown → prev
+        const engineStatePrev = engine.getState();
+        if (engineStatePrev?.mode === 'timeline_frames') {
+          console.log('[StreamDeck] → engine.stepToPrevCue() (timeline mode)');
+          engine.stepToPrevCue();
+        } else {
+          console.log('[StreamDeck] → engine.prev() (rundown mode)');
+          engine.prev();
+        }
+        // Switcher prev niezależnie od trybu NEXTIME
         const prevTarget = getTargetSwitcher(context);
         if (prevTarget === 'vmix') {
           senderManager.vmix.prevInput().catch(e => console.error('[StreamDeck] vMix prev:', e));

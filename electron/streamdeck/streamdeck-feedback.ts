@@ -156,8 +156,11 @@ export class StreamDeckFeedback {
     if (!page) return;
 
     const iconSize = this.manager.iconSize.width;
+    // Ogranicz iterację do faktycznej liczby klawiszy urządzenia
+    const maxKeys = this.manager.getStatus().keyCount;
+    const limit = Math.min(page.buttons.length, maxKeys);
 
-    for (let i = 0; i < page.buttons.length; i++) {
+    for (let i = 0; i < limit; i++) {
       const btnConfig = page.buttons[i];
       if (!btnConfig) continue;
 
@@ -184,8 +187,11 @@ export class StreamDeckFeedback {
     if (!page) return;
 
     const iconSize = this.manager.iconSize.width;
+    // Ogranicz iterację do faktycznej liczby klawiszy urządzenia
+    const maxKeys = this.manager.getStatus().keyCount;
+    const limit = Math.min(page.buttons.length, maxKeys);
 
-    for (let i = 0; i < page.buttons.length; i++) {
+    for (let i = 0; i < limit; i++) {
       const btnConfig = page.buttons[i];
       if (!btnConfig) continue;
 

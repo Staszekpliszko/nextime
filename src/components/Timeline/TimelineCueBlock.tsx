@@ -18,6 +18,8 @@ interface TimelineCueBlockProps {
   onContextMenu?: (cue: TimelineCueSummary, x: number, y: number) => void;
   onSelect?: (cueId: string) => void;
   onResize?: (cueId: string, newTcOut: number) => void;
+  /** Faza 40-C: resize z lewej strony — zmiana tc_in */
+  onResizeLeft?: (cueId: string, newTcIn: number) => void;
 }
 
 /** Blok cue na tracku — kolorowy, draggable, resizable */
@@ -35,6 +37,7 @@ export function TimelineCueBlock({
   onContextMenu,
   onSelect,
   onResize,
+  onResizeLeft,
 }: TimelineCueBlockProps) {
   const left = cue.tc_in_frames * pixelsPerFrame;
   const width = cue.tc_out_frames
@@ -51,7 +54,39 @@ export function TimelineCueBlock({
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Sprawdź czy to resize (ostatnie 6px z prawej)
+    // Faza 40-C: sprawdź czy to resize z lewej (pierwsze 6px)
+    if (!isPoint && cue.tc_out_frames && onResizeLeft) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relX = e.clientX - rect.left;
+      if (relX < 6) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsResizing(true);
+        const startX = e.clientX;
+        const origTcIn = cue.tc_in_frames;
+
+        const handleMouseMove = (ev: MouseEvent) => {
+          const delta = ev.clientX - startX;
+          const newTcIn = Math.max(
+            0,
+            Math.min(cue.tc_out_frames! - 1, Math.round(origTcIn + delta / pixelsPerFrame)),
+          );
+          onResizeLeft(cue.id, newTcIn);
+        };
+
+        const handleMouseUp = () => {
+          setIsResizing(false);
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return;
+      }
+    }
+
+    // Sprawdź czy to resize z prawej (ostatnie 6px)
     if (!isPoint && cue.tc_out_frames && onResize) {
       const rect = e.currentTarget.getBoundingClientRect();
       const relX = e.clientX - rect.left;
@@ -111,7 +146,7 @@ export function TimelineCueBlock({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [cue, left, pixelsPerFrame, onDragEnd, onSelect, onResize, isPoint]);
+  }, [cue, left, pixelsPerFrame, onDragEnd, onSelect, onResize, onResizeLeft, isPoint]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -165,6 +200,11 @@ export function TimelineCueBlock({
         <span className="absolute inset-0 px-1 text-[10px] text-white truncate leading-6 pointer-events-none">
           {label}
         </span>
+      )}
+
+      {/* Faza 40-C: Resize handle na lewej krawędzi */}
+      {!isPoint && width > 10 && (
+        <div className="absolute left-0 top-0 w-[6px] h-full cursor-ew-resize" />
       )}
 
       {/* Resize handle na prawej krawędzi */}

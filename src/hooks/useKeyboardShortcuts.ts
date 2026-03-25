@@ -77,6 +77,15 @@ export function useKeyboardShortcuts({ sendCommand }: UseKeyboardShortcutsOption
         break;
       }
 
+      case 'k':
+      case 'K': {
+        // Faza 39-B: Step to previous cue
+        if (!isTimeline) return;
+        e.preventDefault();
+        sendCommand('cmd:step_prev');
+        break;
+      }
+
       case 'ArrowLeft':
       case 'ArrowRight': {
         if (!isTimeline) return;
@@ -173,6 +182,22 @@ export function useKeyboardShortcuts({ sendCommand }: UseKeyboardShortcutsOption
         // Faza 11: Shortcut help overlay
         e.preventDefault();
         document.dispatchEvent(new CustomEvent('nextime:toggle-shortcut-help'));
+        break;
+      }
+
+      // Faza 39-C: Zoom timeline +/-
+      case '+':
+      case '=': {
+        if (!isTimeline) return;
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('nextime:timeline-zoom-in'));
+        break;
+      }
+
+      case '-': {
+        if (!isTimeline) return;
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('nextime:timeline-zoom-out'));
         break;
       }
 

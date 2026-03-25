@@ -299,9 +299,292 @@ Dwie opcje sterowania StreamDeckiem: 1) natywnie (ta faza), 2) przez Companion (
 | 35 | Team Notes | 13 | ~12 | — | 1 |
 | 36 | Waveform Preview | 14 | ~8 | — | 1 |
 | 37 | Natywny StreamDeck | — | ~20 | @elgato-stream-deck/node, sharp | 1-2 |
-| **RAZEM** | **15 faz** | | **~217** | **5 pakietów** | **15-17** |
+| 41 | LTC Audio Reader (prawdziwy) | 8 | ~25 | — (Web Audio API) | 2-3 |
+| **RAZEM** | **16 faz** | | **~242** | **5 pakietów** | **17-20** |
 
-**Po ukończeniu:** ~927 testów (710 + 217)
+**Po ukończeniu:** ~952 testów (710 + 242)
+
+---
+
+## FAZA 39 — Timeline Bugfixes & UX Improvements [UKOŃCZONA]
+**Zależności:** brak
+
+**Bugfixy:**
+- 39-A: Fix play() w stepMode — auto-wyłącza stepMode zamiast blokować (BUG KRYTYCZNY)
+- 39-B: StreamDeck prev/next w trybie timeline — stepToNextCue/stepToPrevCue + cmd:step_prev WS
+
+**UX Improvements:**
+- 39-C: Skróty klawiszowe +/- dla zoom timeline
+- 39-D: Snap/magnet cue'ów do krawędzi sąsiadów (snap-utils.ts, threshold=5 klatek)
+- 39-E: Auto-fit zoom + przycisk "Dopasuj" [⊞] + zoomToFit()
+- 39-F: Domyślna duration 5s dla nowego vision cue
+- 39-G: Logi diagnostyczne feedExternalTc()
+
+**Testy:** 15 nowych | **Sesje:** 1
+
+---
+
+## FAZA 40 — Media Full-Duration on Timeline + Playhead TC Input + Left-Trim [UKOŃCZONA]
+**Zależności:** Faza 39
+
+**Kontekst:** Media cue'y na timeline nie rozciągają się na pełną długość pliku — brakuje auto-duration.
+Playhead (pionowa linia czasu) nie ma możliwości ręcznego wpisania pozycji TC.
+Resize działa tylko z prawej strony — brakuje trim z lewej (skracanie początku klipu).
+
+**Zadania:**
+
+### 40-A: Auto-duration media cue z vMix (WYSOKI)
+- VmixInput.duration (ms) już jest w vmix-xml-parser.ts
+- W TimelineCueDialog.tsx: gdy użytkownik wybiera input vMix w vision cue:
+  - Pobierz duration z vmixInputs[].duration
+  - Przelicz ms → frames: durationFrames = Math.round(durationMs / 1000 * fps)
+  - Ustaw tcOutStr = tcIn + durationFrames
+- Analogicznie dla media cue (jeśli plik z vMix ma duration)
+
+### 40-B: Auto-duration media cue z ffprobe (WYSOKI)
+- TimelineCueDialog.tsx: Faza 36 częściowo to robi (autoSetTcOutFromDuration)
+  ale nie odpala się zawsze — upewnić się że:
+  - Przy wyborze pliku z biblioteki → auto tc_out
+  - Przy wyborze pliku z dysku (browse) → auto tc_out
+  - Przy tworzeniu media cue przez double-click na track → auto tc_out po probe
+- Upewnić się że tc_out trafia do bazy i store
+
+### 40-C: Left-trim (resize z lewej strony) — ŚREDNI
+- TimelineCueBlock.tsx: dodać uchwyt resize na lewej krawędzi (pierwsze 6px)
+  - Drag lewej krawędzi → zmienia tc_in_frames
+  - Dla media cue: offset_frames += (newTcIn - oldTcIn) — żeby audio/video startowało od właściwego momentu
+  - Minimalna szerokość: tc_out - tc_in >= 1
+- Callback onResizeLeft w TimelineTrack → Timeline → IPC update
+- Snap z lewej strony (snap-utils)
+
+### 40-D: Playhead — ręczne wpisywanie TC (ŚREDNI)
+- W Timeline.tsx toolbar: klik na wyświetlacz TC → zamienia się na input (inline edit)
+- Wpisanie timecode (HH:MM:SS:FF) + Enter → sendCommand('cmd:scrub', { frames })
+- Escape → anuluj edycję
+- Walidacja formatu timecode
+
+### 40-E: Testy
+- Test auto-duration z vMix (mock vmixInputs z duration)
+- Test left-trim (zmiana tc_in + offset_frames)
+- Test snap z lewej strony
+- Test inline TC input (unit)
+
+**Testy:** ~15 | **Sesje:** 1-2
+
+---
+
+## FAZA 41 — LTC Audio Reader (prawdziwy dekoder timecodu z karty dźwiękowej)
+**Braki:** #8 (LTC audio reader)
+**Zależności:** Faza 22 (LtcReader placeholder + MTC parser już istnieją)
+**Deps npm:** brak nowych (Web Audio API wbudowane w Chromium/Electron)
+
+### Kontekst i cel
+
+CuePilot Pro ma moduł **Timecode** w sekcji System, który synchronizuje wszystkie departamenty produkcji live:
+- Oświetlenie (lighting console: GrandMA, Hog, ETC)
+- Content/media serwery (disguise, Resolume, CasparCG)
+- Kamery i vision mixer
+
+**LTC (Linear Timecode)** to analogowy sygnał audio zakodowany wg standardu SMPTE 12M,
+przesyłany kablem XLR/TRS do wejścia karty dźwiękowej komputera.
+Jest to **standard branżowy** w produkcjach live — generatory LTC są w każdym reżyserce.
+
+**Stan obecny w NEXTIME:**
+- `electron/senders/ltc-reader.ts` — klasa `LtcReader` z 4 trybami: `internal`, `ltc`, `mtc`, `manual`
+- Tryb **MTC** (MIDI Timecode) — **w pełni działa** (Quarter Frame + Full Frame, @julusian/midi)
+- Tryb **LTC audio** — **placeholder** (linia 241: `console.log('...placeholder...')`)
+- Tryb **internal** i **manual** — działają
+- Settings panel (`SettingsPanel.tsx` linia 524-602) — dropdown źródła, lista portów MTC
+- PlaybackEngine — `feedExternalTc(frames)` + `setLtcSource()` — gotowe
+- Testy: `tests/unit/ltc-reader.test.ts`, `tests/unit/mtc-parser.test.ts`, `tests/unit/engine-ltc.test.ts`
+
+**Cel Fazy 41:** Zamienić placeholder LTC audio na prawdziwy dekoder sygnału biphasowego
+z wejścia karty dźwiękowej, używając Web Audio API w renderer process Electrona.
+
+### Architektura LTC audio dekodera
+
+```
+Karta dźwiękowa (XLR/TRS)
+    ↓
+Web Audio API (AudioContext w renderer process)
+    ↓ getUserMedia() → MediaStream → AudioWorkletNode
+    ↓
+LtcAudioDecoder (AudioWorkletProcessor)
+    ↓ dekodowanie biphasowego sygnału SMPTE 12M
+    ↓ port.postMessage({ hours, minutes, seconds, frames, fps })
+    ↓
+LtcAudioBridge (renderer) — odbiera MessagePort
+    ↓ window.nextime.feedLtcAudio(frames) → IPC
+    ↓
+LtcReader (main process) — feedTc(frames)
+    ↓ emit('tc-received', frames)
+    ↓
+PlaybackEngine — feedExternalTc(frames)
+    → timeline podąża za zewnętrznym TC
+```
+
+### Jak działa sygnał LTC (SMPTE 12M)
+
+LTC to sygnał audio z Manchester biphase encoding:
+- Bit "0" = jedno przejście przez zero w okresie bitu
+- Bit "1" = dwa przejścia przez zero w okresie bitu
+- Każda klatka TC = 80 bitów:
+  - Bity 0-3: frames units (BCD)
+  - Bity 4-7: frames tens (BCD, 2 bity) + drop-frame flag + color frame flag
+  - Bity 8-11: seconds units
+  - Bity 12-15: seconds tens (BCD, 3 bity) + parity bit
+  - Bity 16-19: minutes units
+  - Bity 20-23: minutes tens (BCD, 3 bity) + binary group flag
+  - Bity 24-27: hours units
+  - Bity 28-31: hours tens (BCD, 2 bity) + binary group flag + reserved
+  - Bity 32-63: user bits (8×4 bity — opcjonalne dane użytkownika)
+  - Bity 64-79: sync word (0011 1111 1111 1101) — rozpoznanie końca klatki
+- Częstotliwość zależy od fps: 2400 Hz (30fps) do 2000 Hz (24fps)
+- Sygnał może biec do przodu lub do tyłu (reverse playback!)
+
+### Zadania (w kolejności priorytetów)
+
+#### 41-A: AudioWorklet — dekoder biphasowy (KRYTYCZNY)
+**Nowy plik:** `src/audio/ltc-decoder.worklet.ts`
+
+AudioWorkletProcessor który:
+1. Odbiera próbki audio z `process()` (Float32Array, 128 samples per call)
+2. Wykrywa przejścia przez zero (zero-crossings) w sygnale
+3. Mierzy odstępy między przejściami → rozróżnia bit "0" (długi) od bit "1" (krótki)
+4. Składa bity w 80-bitowe klatki LTC
+5. Szuka sync word (0011 1111 1111 1101) na końcu klatki → potwierdza alignment
+6. Dekoduje BCD → HH:MM:SS:FF + fps (24/25/29.97/30)
+7. Wysyła zdekodowany TC przez `port.postMessage()`
+
+**Szczegóły algorytmu:**
+- Adaptacyjny próg zero-crossing (nie hardcoded, bo poziom sygnału się zmienia)
+- Hysteresis żeby uniknąć fałszywych zero-crossings na szumie
+- Bit clock recovery: mierz średni okres bitu, aktualizuj running average
+- Obsługa reverse playback: sync word czytany od tyłu = (1011 1111 1111 1100)
+- Obsługa drop-frame flag (bit 10) — oznacza 29.97fps drop-frame
+- Error detection: jeśli sync word nie pasuje, odrzuć klatkę i szukaj dalej
+- Sample rate awareness: `sampleRate` z `AudioWorkletGlobalScope` (zazwyczaj 44100 lub 48000)
+
+**Parametry do tuningu:**
+- `HYSTERESIS_THRESHOLD` = 0.02 (minimalna amplituda do detekcji zero-crossing)
+- `BIT_PERIOD_TOLERANCE` = 0.3 (30% tolerancja na odchylenie od oczekiwanego okresu bitu)
+- `MIN_VALID_FRAMES` = 3 (ile kolejnych poprawnych klatek zanim uznamy sync za stabilny)
+
+#### 41-B: LtcAudioBridge — most renderer ↔ main process (WYSOKI)
+**Nowy plik:** `src/audio/ltc-audio-bridge.ts`
+
+Klasa w renderer process:
+1. `start(deviceId?: string)` — uruchamia AudioContext + getUserMedia() + AudioWorkletNode
+2. `stop()` — zatrzymuje strumień i AudioContext
+3. `listAudioInputs()` → lista urządzeń audio (navigator.mediaDevices.enumerateDevices)
+4. `onTimecode(callback)` — rejestruje callback na zdekodowany TC
+5. Komunikacja z main process: `window.nextime.feedLtcAudio(frames)` → IPC → `LtcReader.feedTc(frames)`
+
+**Szczegóły:**
+- AudioContext z `latencyHint: 'interactive'` (minimalne opóźnienie)
+- `getUserMedia({ audio: { deviceId, echoCancellation: false, noiseSuppression: false, autoGainControl: false } })`
+  — WAŻNE: wyłącz preprocessing audio! LTC to sygnał, nie głos.
+- Constraint `sampleRate: 48000` (preferuj 48kHz dla lepszej rozdzielczości)
+- AudioWorkletNode podłączony do source (nie do destination — nie chcemy słyszeć LTC w głośnikach)
+- Debounce: nie wysyłaj feedTc częściej niż co 1 klatkę TC (unikaj duplikatów)
+
+#### 41-C: IPC — nowe handlery w main process (WYSOKI)
+**Modyfikacje:**
+- `electron/main.ts` — nowe IPC handlery:
+  - `nextime:feedLtcAudio` — przyjmuje frames z renderer, przekazuje do LtcReader.feedTc()
+  - `nextime:listAudioInputs` — proxy do renderer (enumDevices musi być w renderer)
+  - `nextime:startLtcAudio` — informuje renderer żeby uruchomił AudioWorklet
+  - `nextime:stopLtcAudio` — informuje renderer żeby zatrzymał AudioWorklet
+- `electron/preload.ts` — nowe metody:
+  - `feedLtcAudio(frames: number): void`
+  - `onStartLtcAudio(callback: (deviceId?: string) => void): void`
+  - `onStopLtcAudio(callback: () => void): void`
+- `src/types/electron.d.ts` — typy dla nowych metod
+
+#### 41-D: LtcReader — podpięcie trybu 'ltc' (WYSOKI)
+**Modyfikacja:** `electron/senders/ltc-reader.ts`
+- Zamienić placeholder w `connect()` (linia 241-245):
+  - Zamiast `console.log('placeholder')` → wyślij IPC do renderer żeby uruchomił AudioWorklet
+  - `this._connected = true` dopiero po potwierdzeniu z renderera
+- Nowa metoda `connectLtcAudio(deviceId?: string)` — analogiczna do `connectMtc(portIndex)`
+- Nowa metoda `disconnectLtcAudio()` — analogiczna do `disconnectMtc()`
+- `feedTc()` jest już gotowe — AudioBridge będzie je wywoływał przez IPC
+
+#### 41-E: Settings Panel — rozszerzenie zakładki LTC (ŚREDNI)
+**Modyfikacja:** `src/components/SettingsPanel/SettingsPanel.tsx`
+- Gdy `source === 'ltc'` — pokaż dodatkową sekcję (analogicznie do MTC):
+  - **Dropdown "Wejście audio"** — lista kart dźwiękowych z `navigator.mediaDevices.enumerateDevices()`
+    (filtruj `kind === 'audioinput'`)
+  - **Przycisk "Połącz" / "Rozłącz"** — uruchamia/zatrzymuje AudioWorklet
+  - **Status sygnału:**
+    - Wskaźnik poziomu audio (peak meter) — wizualne potwierdzenie że sygnał dociera
+    - Aktualny TC w formacie HH:MM:SS:FF (zielony font-mono, odświeżany co 500ms)
+    - FPS wykryty z sygnału LTC (24/25/29.97/30)
+    - Jakość sygnału: "Stabilny" / "Słaby" / "Brak" (na podstawie error rate)
+  - **Tekst pomocniczy:**
+    - "Podłącz sygnał LTC do wejścia karty dźwiękowej (XLR→TRS/USB)"
+    - "Wyłącz preprocessing audio (echo cancellation, noise suppression)"
+    - "Optymalny poziom sygnału: -20 dBFS do -6 dBFS"
+  - Odśwież status co 500ms (tak jak MTC)
+  - Wskaźnik sygnału (peak meter) — canvas 100×20px, rysuj poziom RMS/peak
+  - Ikona kabla XLR / sygnału audio obok nazwy źródła
+
+#### 41-F: Komponent AudioLevelMeter (NISKI)
+**Nowy plik:** `src/components/SettingsPanel/AudioLevelMeter.tsx`
+- Canvas wyświetlający poziom audio z wejścia karty (do debugowania LTC)
+- AnalyserNode z AudioContext → getByteFrequencyData → rysuj bar
+- Kolory: zielony (-inf do -12dB), żółty (-12 do -6dB), czerwony (>-6dB)
+- Rozmiar: 200×24px, odświeżanie 30fps (requestAnimationFrame)
+
+#### 41-G: Obsługa edge cases (NISKI)
+- **Brak sygnału LTC** — po 2s bez nowego TC: emit 'tc-lost', UI: status "Brak sygnału"
+- **Słaby sygnał** — error rate > 10%: UI: status "Słaby sygnał"
+- **Zmiana fps w trakcie** — wykryj zmianę fps i zaloguj warning (nie zmieniaj fps projektu automatycznie)
+- **Reverse playback** — wykryj sync word od tyłu, obroć bity, dekoduj normalnie
+- **Uprawnienia mikrofonu** — obsłuż odmowę: "Aplikacja wymaga dostępu do karty dźwiękowej"
+- **Wybudzenie z trybu uśpienia** — AudioContext.state === 'suspended' → resume()
+- **Zmiana urządzenia audio w trakcie** — nasłuchuj `navigator.mediaDevices.ondevicechange`
+
+#### 41-H: Testy
+**Nowe pliki testów:**
+- `tests/unit/ltc-decoder.test.ts`:
+  - Generuj syntetyczny sygnał LTC (Manchester encoding) w Float32Array
+  - Testuj dekodowanie: 25fps, 30fps, 29.97 drop-frame, 24fps
+  - Testuj sync word detection (forward + reverse)
+  - Testuj BCD decoding → HH:MM:SS:FF
+  - Testuj error rejection (uszkodzony sync word → odrzucenie klatki)
+  - Testuj adaptacyjny bit clock recovery
+  - Testuj hysteresis (szum poniżej progu → brak fałszywych zero-crossings)
+- `tests/unit/ltc-audio-bridge.test.ts`:
+  - Mock AudioContext + getUserMedia
+  - Testuj start/stop lifecycle
+  - Testuj feedLtcAudio IPC call
+  - Testuj debounce (nie wysyłaj duplikatów)
+- Rozszerz `tests/unit/ltc-reader.test.ts`:
+  - Testuj connectLtcAudio() / disconnectLtcAudio()
+  - Testuj feedTc() w trybie 'ltc'
+  - Testuj 'tc-lost' po timeout 2s
+
+### Porównanie z CuePilot Pro po Fazie 41
+
+| Funkcja | CuePilot | NEXTIME (po Fazie 41) |
+|---|---|---|
+| LTC audio z karty dźwiękowej | ✅ (hardware AJA) | ✅ (Web Audio API — dowolna karta) |
+| MTC (MIDI Timecode) | ✅ | ✅ (już działa od Fazy 22) |
+| Internal clock | ✅ | ✅ |
+| Manual TC | ✅ | ✅ |
+| Wybór urządzenia audio | ✅ | ✅ (dropdown z enumerateDevices) |
+| Status / peak meter | ✅ | ✅ (AudioLevelMeter) |
+| Reverse playback detection | ? | ✅ |
+| Drop-frame 29.97 | ✅ | ✅ |
+| Hardware wymagany | AJA (drogi) | Dowolna karta USB/wbudowana (tańsze!) |
+
+**Przewaga NEXTIME:** Nie wymaga drogiego hardware AJA — dowolna karta dźwiękowa USB
+z wejściem liniowym (np. Focusrite Scarlett, Behringer UMC, wbudowane wejście mic z adapterem XLR→TRS).
+
+**Testy:** ~25 nowych | **Sesje:** 2-3
+
+---
 
 ## Weryfikacja (po każdej fazie)
 1. `npx tsc --noEmit` — zero błędów

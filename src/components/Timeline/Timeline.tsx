@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { usePlaybackStore } from '@/store/playback.store';
 import { useTimelinePlayhead } from '@/hooks/usePlayback';
 import { TimelineRuler } from './TimelineRuler';
 import { TimelineTrack, TRACK_TYPE_COLORS } from './TimelineTrack';
 import { TimelinePlayhead } from './TimelinePlayhead';
 import { useTimelineZoom } from './useTimelineZoom';
-import { framesToTimecode } from '@/utils/timecode';
+import { framesToTimecode, timecodeToFrames } from '@/utils/timecode';
 import type { TimelineCueSummary, TrackSummary } from '@/store/playback.store';
+import { snapToNeighbors } from './snap-utils';
 
 /** Domyślne nazwy per typ tracka */
 const TRACK_DEFAULT_NAMES: Record<string, string> = {
@@ -126,7 +127,7 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
     : 7500; // fallback 5min @ 25fps
 
   const zoom = useTimelineZoom(fps);
-  const { pixelsPerFrame, framesToPx, containerRef, zoomIn, zoomOut } = zoom;
+  const { pixelsPerFrame, framesToPx, containerRef, zoomIn, zoomOut, zoomToFit } = zoom;
 
   // Dropdown "+ Track"
   const [showTrackTypeMenu, setShowTrackTypeMenu] = useState(false);
@@ -151,6 +152,35 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
       container.scrollLeft = phPx - viewWidth / 3;
     }
   }, [interpolatedFrames, framesToPx, containerRef]);
+
+  // Faza 39-E: Auto-fit zoom gdy cue'y wykraczają poza viewport
+  const prevCueCountRef = useMemo(() => ({ value: timelineCues.length }), []);
+  useEffect(() => {
+    // Uruchom auto-fit tylko gdy dodano nowy cue (nie przy każdej zmianie)
+    if (timelineCues.length > prevCueCountRef.value) {
+      const maxTcOut = timelineCues.reduce((max, c) => {
+        const end = c.tc_out_frames ?? c.tc_in_frames;
+        return end > max ? end : max;
+      }, 0);
+      const container = containerRef.current;
+      if (container && maxTcOut * pixelsPerFrame > container.clientWidth - 140) {
+        zoomToFit(maxTcOut);
+      }
+    }
+    prevCueCountRef.value = timelineCues.length;
+  }, [timelineCues.length, timelineCues, pixelsPerFrame, zoomToFit, containerRef, prevCueCountRef]);
+
+  // Faza 39-C: Nasłuchuj na CustomEvents zoom z klawiatury (+/-)
+  useEffect(() => {
+    const handleZoomIn = () => zoomIn();
+    const handleZoomOut = () => zoomOut();
+    document.addEventListener('nextime:timeline-zoom-in', handleZoomIn);
+    document.addEventListener('nextime:timeline-zoom-out', handleZoomOut);
+    return () => {
+      document.removeEventListener('nextime:timeline-zoom-in', handleZoomIn);
+      document.removeEventListener('nextime:timeline-zoom-out', handleZoomOut);
+    };
+  }, [zoomIn, zoomOut]);
 
   // Zoom na Ctrl+scroll
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -211,23 +241,51 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
   }, []);
 
   // Drag cue — aktualizacja pozycji (Faza 24: fix — aktualizuj store żeby blok się przesunął w UI)
+  // Faza 39-D: snap do krawędzi sąsiadów
   const handleCueDrag = useCallback((cueId: string, newTcIn: number, newTcOut: number | undefined) => {
-    // Aktualizuj store (UI) natychmiast — żeby blok się przesunął wizualnie
+    const allCues = usePlaybackStore.getState().timelineCues;
+    const snappedIn = snapToNeighbors(newTcIn, allCues, cueId);
+    const delta = snappedIn - newTcIn;
+    const snappedOut = newTcOut !== undefined ? newTcOut + delta : undefined;
+
     usePlaybackStore.getState().updateTimelineCue(cueId, {
-      tc_in_frames: newTcIn,
-      tc_out_frames: newTcOut,
+      tc_in_frames: snappedIn,
+      tc_out_frames: snappedOut,
     });
-    // Zapisz w bazie przez IPC
     window.nextime.updateTimelineCue(cueId, {
-      tc_in_frames: newTcIn,
-      tc_out_frames: newTcOut,
+      tc_in_frames: snappedIn,
+      tc_out_frames: snappedOut,
     });
   }, []);
 
   // Resize cue — zmiana tc_out_frames
+  // Faza 39-D: snap tc_out do krawędzi sąsiadów
   const handleCueResize = useCallback((cueId: string, newTcOut: number) => {
-    window.nextime.updateTimelineCue(cueId, { tc_out_frames: newTcOut });
-    usePlaybackStore.getState().updateTimelineCue(cueId, { tc_out_frames: newTcOut });
+    const allCues = usePlaybackStore.getState().timelineCues;
+    const snappedOut = snapToNeighbors(newTcOut, allCues, cueId);
+    window.nextime.updateTimelineCue(cueId, { tc_out_frames: snappedOut });
+    usePlaybackStore.getState().updateTimelineCue(cueId, { tc_out_frames: snappedOut });
+  }, []);
+
+  // Faza 40-C: Resize cue z lewej strony — zmiana tc_in_frames (left-trim)
+  const handleCueResizeLeft = useCallback((cueId: string, newTcIn: number) => {
+    const allCues = usePlaybackStore.getState().timelineCues;
+    const cue = allCues.find(c => c.id === cueId);
+    if (!cue) return;
+
+    const snappedIn = snapToNeighbors(newTcIn, allCues, cueId);
+
+    // Dla media cue: offset_frames rośnie proporcjonalnie do skrócenia początku
+    const updateData: Record<string, unknown> = { tc_in_frames: snappedIn };
+    if (cue.type === 'media') {
+      const oldTcIn = cue.tc_in_frames;
+      const oldOffset = ((cue.data as Record<string, unknown>).offset_frames as number) ?? 0;
+      const newOffset = oldOffset + (snappedIn - oldTcIn);
+      updateData.data = { ...(cue.data as Record<string, unknown>), offset_frames: Math.max(0, newOffset) };
+    }
+
+    usePlaybackStore.getState().updateTimelineCue(cueId, updateData);
+    window.nextime.updateTimelineCue(cueId, updateData);
   }, []);
 
   // Selekcja cue
@@ -300,6 +358,38 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
     }
   }, [onCreateCue]);
 
+  // Faza 40-D: inline edit TC playhead
+  const [isEditingTc, setIsEditingTc] = useState(false);
+  const [editTcValue, setEditTcValue] = useState('');
+  const tcInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTcClick = useCallback(() => {
+    setEditTcValue(framesToTimecode(Math.floor(currentTcFrames), fps));
+    setIsEditingTc(true);
+    // Auto-focus i select po renderze
+    setTimeout(() => {
+      tcInputRef.current?.focus();
+      tcInputRef.current?.select();
+    }, 0);
+  }, [currentTcFrames, fps]);
+
+  const handleTcSubmit = useCallback(() => {
+    const frames = timecodeToFrames(editTcValue, fps);
+    if (!isNaN(frames) && frames >= 0 && activeActId) {
+      sendCommand('cmd:scrub', { act_id: activeActId, frames });
+    }
+    setIsEditingTc(false);
+  }, [editTcValue, fps, activeActId, sendCommand]);
+
+  const handleTcCancel = useCallback(() => {
+    setIsEditingTc(false);
+  }, []);
+
+  const handleTcKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleTcSubmit();
+    if (e.key === 'Escape') handleTcCancel();
+  }, [handleTcSubmit, handleTcCancel]);
+
   const playheadPx = framesToPx(interpolatedFrames);
   const totalWidth = actDuration * pixelsPerFrame;
 
@@ -308,9 +398,25 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border-b border-slate-700">
         <span className="text-xs text-slate-400">TC:</span>
-        <span className="text-sm font-mono text-emerald-400">
-          {framesToTimecode(Math.floor(currentTcFrames), fps)}
-        </span>
+        {isEditingTc ? (
+          <input
+            ref={tcInputRef}
+            value={editTcValue}
+            onChange={e => setEditTcValue(e.target.value)}
+            onKeyDown={handleTcKeyDown}
+            onBlur={handleTcCancel}
+            className="w-24 text-sm font-mono text-emerald-400 bg-slate-900 border border-emerald-500 rounded px-1 py-0 focus:outline-none"
+            placeholder="HH:MM:SS:FF"
+          />
+        ) : (
+          <span
+            className="text-sm font-mono text-emerald-400 cursor-pointer hover:text-emerald-300 select-none"
+            onClick={handleTcClick}
+            title="Kliknij, aby wpisać timecode"
+          >
+            {framesToTimecode(Math.floor(currentTcFrames), fps)}
+          </span>
+        )}
 
         <div className="flex-1" />
 
@@ -328,6 +434,13 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
           className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded"
         >
           +
+        </button>
+        <button
+          onClick={() => zoomToFit(actDuration)}
+          className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded ml-1"
+          title="Dopasuj zoom do zawartości"
+        >
+          ⊞
         </button>
       </div>
 
@@ -368,6 +481,7 @@ export function Timeline({ sendCommand, onCreateCue, onEditCue, onContextMenuCue
               onCueContextMenu={onContextMenuCue}
               onCueSelect={handleCueSelect}
               onCueResize={handleCueResize}
+              onCueResizeLeft={handleCueResizeLeft}
               onTrackDelete={handleDeleteTrack}
               onTrackRename={handleRenameTrack}
               onTrackDoubleClick={handleTrackDoubleClick}

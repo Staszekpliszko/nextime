@@ -1767,3 +1767,119 @@ Dwie opcje sterowania: 1) natywnie (ta faza), 2) przez Companion (Faza 34).
 | **SUMA** | **~252** | |
 
 Po Fazie 37: **1030 testów**, pełna paryteta z CuePilot Pro + killer features (OBS/vMix/natywny StreamDeck).
+
+---
+
+## Faza 38 — Electron Production Build + Packaging [UKOŃCZONA]
+
+- [x] **38-A: electron-builder.yml** — uzupełnienia konfiguracji:
+  - Zmiana `appId` na `pl.asmedia.nextime`
+  - Dodanie `assets/osc-schemas/` do `extraResources`
+  - Dodanie natywnych modułów do `asarUnpack`: sharp, @elgato-stream-deck, node-hid, serialport, @julusian/midi
+  - `perMachine: true` w NSIS
+  - `npmRebuild: true` — automatyczny rebuild natywnych modułów
+- [x] **38-B: vite.config.ts** — dodanie brakujących externals:
+  - serialport, @serialport/bindings-cpp, @julusian/midi, @ffprobe-installer/ffprobe, fluent-ffmpeg, obs-websocket-js
+- [x] **38-C: package.json** — uzupełnienie skryptów i zależności:
+  - Dodanie `@electron/rebuild` do devDependencies
+  - Nowe skrypty: `pack:win`, `pack:mac`, `build:check`, `postinstall`
+  - Zmiana `build` na `vite build` (vite-plugin-electron buduje main+preload automatycznie)
+- [x] **38-D: Ścieżki produkcyjne** — weryfikacja i korekta:
+  - DB path: `app.getPath('userData')` — OK (już było)
+  - Schema.sql: `extraResources` → `process.resourcesPath/docs/schema.sql` — OK
+  - OSC schemas: naprawiona ścieżka `extraResources` (`assets/osc-schemas/` → `assets/osc-schemas/`)
+  - PDF fonts: `extraResources` `electron/pdf/fonts/` → `pdf-fonts/` — OK
+  - Preload: `resolvePreloadPath()` — OK (paths.ts)
+  - loadFile: `__dirname/../dist/index.html` — OK
+- [x] **38-E: Istniejący test production-build.test.ts** — naprawiony (nowy appId, dodanie pack:win/mac)
+- [x] **38-F: Nowy test paths.test.ts** — 9 testów weryfikujących:
+  - Obecność schema.sql, ikon, fontów PDF, OSC schematów
+  - Poprawność electron-builder.yml (appId, extraResources)
+  - Pole "main" w package.json
+
+**Statystyki Fazy 38:** 9 nowych testów, ~0 nowych linii kodu (same konfiguracje)
+**ŁĄCZNIE po Fazie 38:** 1053 testy, 89 plików testów
+
+---
+
+## Faza 39 — Timeline Bugfixes & UX Improvements [UKOŃCZONA]
+
+- [x] **39-A: Fix przycisku "Start" w timeline** — BUG KRYTYCZNY
+  - `play()` teraz auto-wyłącza stepMode zamiast blokować (playback-engine.ts:451)
+  - Emituje `mode-changed` event przy auto-wyłączeniu stepMode
+  - Logi diagnostyczne w `play()`, `pause()`, `feedExternalTc()`
+  - Logi w ws-server.ts dla cmd:play i cmd:pause
+  - Zaktualizowany test step-hold-mode.test.ts (odzwierciedla nowe zachowanie)
+
+- [x] **39-B: StreamDeck prev/next w trybie timeline** — BUG WYSOKI
+  - Nowa metoda `engine.stepToPrevCue()` — szuka ostatniego vision cue PRZED bieżącą pozycją
+  - streamdeck-actions.ts: case 'next'/'prev' sprawdza tryb engine
+    - timeline_frames → stepToNextCue()/stepToPrevCue()
+    - rundown_ms → next()/prev() (jak dotychczas)
+    - Switcher next/prev wysyłany niezależnie od trybu NEXTIME
+  - ws-server.ts: nowa komenda `cmd:step_prev` → engine.stepToPrevCue()
+  - useKeyboardShortcuts.ts: klawisz K → cmd:step_prev (symetrycznie do J → step_next)
+
+- [x] **39-C: Skróty klawiszowe +/- dla zoom** — UX ŚREDNI
+  - useKeyboardShortcuts.ts: case '+', '=', '-' → CustomEvents zoom-in/zoom-out
+  - Timeline.tsx: useEffect nasłuchujący na CustomEvents → zoomIn()/zoomOut()
+
+- [x] **39-D: Snap/magnet cue'ów na timeline** — UX ŚREDNI
+  - NOWY plik: src/components/Timeline/snap-utils.ts
+    - snapToNeighbors(value, allCues, excludeId, threshold=5)
+    - Zbiera krawędzie (tc_in, tc_out) sąsiadów, snapuje jeśli w progu
+    - SNAP_THRESHOLD_FRAMES = 5
+  - Timeline.tsx: handleCueDrag i handleCueResize snapują wartości
+
+- [x] **39-E: Auto-fit zoom po dodaniu długiego klipu** — UX NISKI
+  - useTimelineZoom.ts: nowa metoda zoomToFit(contentFrames) + export ZOOM_LEVELS
+  - Timeline.tsx: auto-fit po dodaniu nowego cue wykraczającego poza viewport
+  - Przycisk "Dopasuj" [⊞] w toolbarze obok +/-
+
+- [x] **39-F: Domyślna duration 5s dla vision cue** — UX NISKI
+  - TimelineCueDialog.tsx: nowy vision cue w trybie create → tc_out = tc_in + fps * 5
+
+- [x] **39-G: Logi diagnostyczne feedExternalTc**
+  - console.log w feedExternalTc() z informacją o source, current, new frames
+
+**Statystyki Fazy 39:** 15 nowych testów (8 engine + 7 snap), 1 nowy plik (snap-utils.ts)
+**ŁĄCZNIE:** 1068 testów, 92 pliki testów
+
+---
+
+## Faza 40 — Media Full-Duration on Timeline + Playhead TC Input + Left-Trim [UKOŃCZONA]
+
+- [x] **40-A: Auto-duration media cue z vMix** — WYSOKI
+  - TimelineCueDialog.tsx: onChange na select kamery sprawdza vmixInputs[].duration
+  - Przeliczenie ms → frames: `Math.round(durationMs / 1000 * fps)`
+  - Ustawia tcOutStr = tcIn + durationFrames (tylko gdy duration > 0, pomija live kamery)
+
+- [x] **40-B: Fix auto-duration z ffprobe** — WYSOKI
+  - TimelineCueDialog.tsx: `autoSetTcOutFromDuration` używa `useRef` na tcInStr zamiast closure
+  - Gwarantuje że tcOutStr jest zawsze obliczany na podstawie aktualnego tcInStr
+  - Działa poprawnie we wszystkich ścieżkach: biblioteka, dysk, double-click na track
+
+- [x] **40-C: Left-trim — resize z lewej strony** — ŚREDNI
+  - TimelineCueBlock.tsx: nowy prop `onResizeLeft`, uchwyt na lewej krawędzi (pierwsze 6px)
+  - Drag lewej krawędzi → zmienia tc_in_frames, minimum: tc_out - newTcIn >= 1
+  - Dla media cue: offset_frames += (newTcIn - oldTcIn), minimum 0
+  - TimelineTrack.tsx: przekazuje `onCueResizeLeft` do TimelineCueBlock
+  - Timeline.tsx: `handleCueResizeLeft` — snap newTcIn + update store + IPC
+  - Wizualny uchwyt cursor-ew-resize na lewej krawędzi bloku
+
+- [x] **40-D: Playhead — ręczne wpisywanie TC** — ŚREDNI
+  - Timeline.tsx: klik na wyświetlacz TC → inline input (font-mono, border emerald)
+  - Enter → parsuj timecodeToFrames() → sendCommand('cmd:scrub', { frames })
+  - Escape/Blur → anuluj edycję, wróć do span
+  - Auto-select tekstu po kliknięciu
+  - Walidacja: NaN lub < 0 → ignoruj
+
+- [x] **40-E: Testy**
+  - tests/unit/timeline-phase40.test.ts — 17 testów:
+    - 4 testy auto-duration vMix (ms→frames, tc_out calculation, live camera 0ms)
+    - 4 testy left-trim (offset calculation, existing offset, min width, negative offset guard)
+    - 3 testy snap z lewej strony (snap do tc_out sąsiada, snap do tc_in, brak snap)
+    - 6 testów inline TC input (parsowanie, roundtrip, niepoprawny format)
+
+**Statystyki Fazy 40:** 17 nowych testów, 1 nowy plik testów
+**ŁĄCZNIE:** 1085 testów, 93 pliki testów

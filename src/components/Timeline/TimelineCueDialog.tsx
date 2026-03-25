@@ -63,7 +63,10 @@ export function TimelineCueDialog({
 
   // Timecode pozycji
   const initialTcIn = existingCue?.tc_in_frames ?? defaultTcIn ?? 0;
-  const initialTcOut = existingCue?.tc_out_frames ?? defaultTcOut;
+  // Faza 39-F: domyślna duration 5s dla nowego vision cue bez tc_out
+  const initialTcOut = existingCue?.tc_out_frames
+    ?? defaultTcOut
+    ?? (mode === 'create' && cueType === 'vision' ? initialTcIn + fps * 5 : undefined);
 
   const [tcInStr, setTcInStr] = useState(framesToTimecode(initialTcIn, fps));
   const [tcOutStr, setTcOutStr] = useState(initialTcOut ? framesToTimecode(initialTcOut, fps) : '');
@@ -176,14 +179,18 @@ export function TimelineCueDialog({
     });
   }, [cueType]);
 
-  // Faza 36: ustaw TC Out na podstawie duration pliku media
+  // Faza 40-B: ref na aktualny tcInStr żeby autoSetTcOutFromDuration zawsze miał świeżą wartość
+  const tcInStrRef = useRef(tcInStr);
+  tcInStrRef.current = tcInStr;
+
+  // Faza 36/40-B: ustaw TC Out na podstawie duration pliku media (używa ref zamiast closure)
   const autoSetTcOutFromDuration = useCallback((durationFrames: number) => {
     if (durationFrames > 0) {
-      const tcIn = timecodeToFrames(tcInStr, fps);
+      const tcIn = timecodeToFrames(tcInStrRef.current, fps);
       const tcOut = tcIn + durationFrames;
       setTcOutStr(framesToTimecode(tcOut, fps));
     }
-  }, [tcInStr, fps]);
+  }, [fps]);
 
   // Faza 24: wybierz plik z biblioteki mediów (dropdown)
   const handleMediaLibrarySelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -338,7 +345,18 @@ export function TimelineCueDialog({
                   </label>
                   <select
                     value={cameraNumber}
-                    onChange={e => setCameraNumber(Number(e.target.value))}
+                    onChange={e => {
+                      const num = Number(e.target.value);
+                      setCameraNumber(num);
+                      // Faza 40-A: auto-duration z vMix — ustaw tc_out na podstawie duration inputu
+                      if (vmixInputs.length > 0) {
+                        const inp = vmixInputs.find(i => i.number === num);
+                        if (inp && inp.duration > 0) {
+                          const durationFrames = Math.round(inp.duration / 1000 * fps);
+                          autoSetTcOutFromDuration(durationFrames);
+                        }
+                      }
+                    }}
                     className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none"
                   >
                     {vmixInputs.length > 0 ? (

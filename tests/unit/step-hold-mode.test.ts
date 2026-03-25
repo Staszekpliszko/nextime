@@ -126,12 +126,14 @@ describe('PlaybackEngine — Step Mode + Hold Mode (Faza 6)', () => {
 
   // ── play() blocked in step mode ───────────────────────
 
-  describe('play() blocked in step mode', () => {
-    it('play() nie powinno działać w step mode', () => {
+  // Faza 39-A: play() auto-wyłącza stepMode zamiast blokować
+  describe('play() auto-disables step mode', () => {
+    it('play() w step mode — auto-wyłącza stepMode i startuje', () => {
       engine.toggleStepMode();
       engine.play();
       const state = engine.getState() as EngineTimelineFramesState;
-      expect(state.is_playing).toBe(false);
+      expect(state.stepMode).toBe(false);
+      expect(state.is_playing).toBe(true);
     });
 
     it('play() powinno działać po wyłączeniu step mode', () => {

@@ -33,6 +33,8 @@ interface TimelineTrackProps {
   onCueContextMenu?: (cue: TimelineCueSummary, x: number, y: number) => void;
   onCueSelect?: (cueId: string) => void;
   onCueResize?: (cueId: string, newTcOut: number) => void;
+  /** Faza 40-C: resize z lewej strony */
+  onCueResizeLeft?: (cueId: string, newTcIn: number) => void;
   onTrackDelete?: (trackId: string) => void;
   onTrackRename?: (trackId: string, newName: string) => void;
   onTrackDoubleClick?: (trackId: string, tcInFrames: number) => void;
@@ -57,6 +59,7 @@ export function TimelineTrack({
   onCueContextMenu,
   onCueSelect,
   onCueResize,
+  onCueResizeLeft,
   onTrackDelete,
   onTrackRename,
   onTrackDoubleClick,
@@ -240,6 +243,7 @@ export function TimelineTrack({
               onContextMenu={onCueContextMenu}
               onSelect={onCueSelect}
               onResize={onCueResize}
+              onResizeLeft={onCueResizeLeft}
             />
           );
         })}

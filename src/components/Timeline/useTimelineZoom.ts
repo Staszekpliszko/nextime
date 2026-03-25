@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { FPS } from '@/utils/timecode';
 
 /** Poziomy zoomu — pixelsPerFrame */
-const ZOOM_LEVELS = [0.5, 1, 2, 4, 8, 16];
+export const ZOOM_LEVELS = [0.5, 1, 2, 4, 8, 16];
 const DEFAULT_ZOOM_INDEX = 2; // 2px/frame
 
 export interface TimelineZoom {
@@ -16,6 +16,8 @@ export interface TimelineZoom {
   zoomIn: () => void;
   /** Oddal */
   zoomOut: () => void;
+  /** Faza 39-E: Dopasuj zoom do zawartości */
+  zoomToFit: (contentFrames: number) => void;
   /** Scroll X position */
   scrollX: number;
   /** Ustaw scroll */
@@ -44,6 +46,25 @@ export function useTimelineZoom(fps: FPS): TimelineZoom {
     setZoomIndex(prev => Math.max(prev - 1, 0));
   }, []);
 
+  /** Faza 39-E: Dopasuj zoom żeby cała zawartość mieściła się w viewport */
+  const zoomToFit = useCallback((contentFrames: number) => {
+    const container = containerRef.current;
+    if (!container || contentFrames <= 0) return;
+    // Odejmij 132px na etykiety tracków (w-32 = 128px + margines)
+    const availableWidth = container.clientWidth - 140;
+    if (availableWidth <= 0) return;
+    const idealPxPerFrame = availableWidth / contentFrames;
+    // Znajdź najbliższy ZOOM_LEVELS index (równy lub mniejszy)
+    let bestIdx = 0;
+    for (let i = ZOOM_LEVELS.length - 1; i >= 0; i--) {
+      if (ZOOM_LEVELS[i]! <= idealPxPerFrame) {
+        bestIdx = i;
+        break;
+      }
+    }
+    setZoomIndex(bestIdx);
+  }, [containerRef]);
+
   const framesToPx = useCallback((frames: number) => {
     return frames * pixelsPerFrame;
   }, [pixelsPerFrame]);
@@ -58,6 +79,7 @@ export function useTimelineZoom(fps: FPS): TimelineZoom {
     zoomIndex,
     zoomIn,
     zoomOut,
+    zoomToFit,
     scrollX,
     setScrollX,
     framesToPx,

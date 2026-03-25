@@ -19,7 +19,7 @@ describe('Production Build Config', () => {
     const content = fs.readFileSync(ymlPath, 'utf-8');
 
     // Sprawdź kluczowe pola (prosty parsing — bez zależności od js-yaml)
-    expect(content).toContain('appId: com.aslive.nextime');
+    expect(content).toContain('appId: pl.asmedia.nextime');
     expect(content).toContain('productName: NextTime');
   });
 
@@ -49,6 +49,8 @@ describe('Production Build Config', () => {
     };
 
     expect(pkg.scripts['pack']).toBeDefined();
+    expect(pkg.scripts['pack:win']).toBeDefined();
+    expect(pkg.scripts['pack:mac']).toBeDefined();
     expect(pkg.scripts['dist']).toBeDefined();
     expect(pkg.scripts['dist:win']).toBeDefined();
     expect(pkg.scripts['dist:mac']).toBeDefined();

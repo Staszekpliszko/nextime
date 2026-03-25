@@ -270,7 +270,7 @@ async function initServices(): Promise<void> {
   // 9. StreamDeck Manager (Faza 37) — natywne USB HID
   streamDeckManager = new StreamDeckManager();
   streamDeckFeedback = new StreamDeckFeedback();
-  streamDeckPagesConfig = getDefaultPages(15); // domyślnie MK.2 layout
+  streamDeckPagesConfig = getDefaultPages(15); // domyślna inicjalizacja — nadpisana po open()
 
   // Synchronizacja referencji pagesConfig po resecie/otwarciu z IPC
   streamDeckManager.on('pages-reset', (newConfig: StreamDeckPagesConfig) => {
@@ -311,23 +311,37 @@ async function initServices(): Promise<void> {
   // Auto-connect jeśli enabled w ustawieniach
   const sdSettings = settingsManager!.getSection('streamdeck');
   if (sdSettings.enabled) {
-    // Wczytaj strony z ustawień
-    if (sdSettings.pagesJson) {
-      try {
-        const parsed = JSON.parse(sdSettings.pagesJson) as StreamDeckPagesConfig;
-        if (parsed.pages && parsed.pages.length > 0) {
-          streamDeckPagesConfig = parsed;
-        }
-      } catch {
-        // Ignoruj — użyj domyślnych
-      }
-    }
-
     streamDeckManager.open().then(async (success) => {
-      if (success && streamDeckManager && streamDeckFeedback && streamDeckPagesConfig && engine && senderManager) {
-        streamDeckFeedback.attach(engine, senderManager, streamDeckManager, streamDeckPagesConfig);
+      if (success && streamDeckManager && streamDeckFeedback && engine && senderManager) {
+        const actualKeyCount = streamDeckManager.getStatus().keyCount;
+
+        // Wczytaj strony z ustawień — ale waliduj keyCount
+        let pagesLoaded = false;
+        if (sdSettings.pagesJson) {
+          try {
+            const parsed = JSON.parse(sdSettings.pagesJson) as StreamDeckPagesConfig;
+            if (parsed.pages && parsed.pages.length > 0) {
+              const savedButtonCount = parsed.pages[0]?.buttons.length ?? 0;
+              if (savedButtonCount === actualKeyCount) {
+                streamDeckPagesConfig = parsed;
+                pagesLoaded = true;
+              } else {
+                console.log(`[NextTime] StreamDeck keyCount mismatch: saved=${savedButtonCount}, actual=${actualKeyCount} — regeneruję domyślne strony`);
+              }
+            }
+          } catch {
+            // Ignoruj — wygeneruj domyślne
+          }
+        }
+
+        // Jeśli nie udało się wczytać lub keyCount się nie zgadza → domyślne strony
+        if (!pagesLoaded) {
+          streamDeckPagesConfig = getDefaultPages(actualKeyCount);
+        }
+
+        streamDeckFeedback.attach(engine, senderManager, streamDeckManager, streamDeckPagesConfig!);
         await streamDeckManager.setBrightness(sdSettings.brightness);
-        console.log('[NextTime] StreamDeck auto-connected');
+        console.log(`[NextTime] StreamDeck auto-connected (${actualKeyCount} klawiszy, ${streamDeckPagesConfig!.pages.length} stron)`);
       }
     }).catch(err => {
       console.log('[NextTime] StreamDeck auto-connect nieudany:', err instanceof Error ? err.message : err);

@@ -301,10 +301,12 @@ export class RundownWsServer {
         break;
 
       case 'cmd:play':
+        console.log('[WS] cmd:play — stan engine:', this.engine.getState()?.mode, 'is_playing:', this.engine.getState()?.is_playing);
         this.handleCommand(session, msg, () => this.engine.play());
         break;
 
       case 'cmd:pause':
+        console.log('[WS] cmd:pause — stan engine:', this.engine.getState()?.mode, 'is_playing:', this.engine.getState()?.is_playing);
         this.handleCommand(session, msg, () => this.engine.pause());
         break;
 
@@ -351,6 +353,11 @@ export class RundownWsServer {
 
       case 'cmd:step_next':
         this.handleCommand(session, msg, () => this.engine.stepToNextCue());
+        break;
+
+      // Faza 39-B: step do poprzedniego vision cue
+      case 'cmd:step_prev':
+        this.handleCommand(session, msg, () => this.engine.stepToPrevCue());
         break;
 
       case 'cmd:take_shot':

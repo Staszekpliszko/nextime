@@ -372,6 +372,7 @@ export class PlaybackEngine extends EventEmitter {
     if (!this.state || this.state.mode !== 'timeline_frames') return;
     // Akceptuj tylko w trybie ltc/mtc/manual — internal advance sam
     if (this.state.ltcSource === 'internal') return;
+    console.log(`[PlaybackEngine] feedExternalTc(${frames}) — source=${this.state.ltcSource}, current=${Math.floor(this.state.currentTcFrames)}`);
 
     this.state.currentTcFrames = Math.max(0, Math.min(frames, this.state.actDurationFrames));
     this.state.lastTickMs = this.clock.now();
@@ -419,6 +420,26 @@ export class PlaybackEngine extends EventEmitter {
     this.emit('state-changed', this.state);
   }
 
+  /** Skacze do poprzedniego vision cue (w step mode lub z StreamDecka) */
+  stepToPrevCue(): void {
+    if (!this.state || this.state.mode !== 'timeline_frames') return;
+    const frame = Math.floor(this.state.currentTcFrames);
+    // Filtruj vision cue'y, sortuj malejąco, znajdź pierwszy PRZED bieżącą pozycją
+    const sorted = this.cachedCues
+      .filter(c => c.type === 'vision')
+      .sort((a, b) => a.tc_in_frames - b.tc_in_frames);
+    // Szukaj ostatniego cue z tc_in_frames < frame (ściśle mniejszy)
+    const prev = [...sorted].reverse().find(c => c.tc_in_frames < frame);
+    if (!prev) return;
+
+    console.log(`[PlaybackEngine] stepToPrevCue() — skaczę do klatki ${prev.tc_in_frames}`);
+    this.state.currentTcFrames = prev.tc_in_frames;
+    this.state.lastTickMs = this.clock.now();
+    this.resetCueTracker();
+    this.executeCues();
+    this.emit('state-changed', this.state);
+  }
+
   /** Wymusza następny vision cue jako aktywny (hold override) */
   takeNextShot(): void {
     if (!this.state || this.state.mode !== 'timeline_frames') return;
@@ -445,10 +466,16 @@ export class PlaybackEngine extends EventEmitter {
   /** Rozpoczyna lub wznawia odtwarzanie */
   play(): void {
     if (!this.state) throw new Error('No rundown loaded');
+    console.log(`[PlaybackEngine] play() — mode=${this.state.mode}, is_playing=${this.state.is_playing}${this.state.mode === 'timeline_frames' ? `, stepMode=${this.state.stepMode}` : ''}`);
 
     // Timeline mode
     if (this.state.mode === 'timeline_frames') {
-      if (this.state.stepMode) return; // Step mode — play zablokowany
+      // Faza 39-A: auto-wyłącz stepMode zamiast blokować play
+      if (this.state.stepMode) {
+        console.log('[PlaybackEngine] play() — auto-wyłączam stepMode');
+        this.state.stepMode = false;
+        this.emit('mode-changed', { stepMode: false, holdMode: this.state.holdMode });
+      }
       if (this.state.is_playing) return;
       this.state.lastTickMs = this.clock.now();
       this.state.is_playing = true;
@@ -480,6 +507,7 @@ export class PlaybackEngine extends EventEmitter {
   /** Pauzuje odtwarzanie */
   pause(): void {
     if (!this.state || !this.state.is_playing) return;
+    console.log(`[PlaybackEngine] pause() — mode=${this.state.mode}`);
 
     if (this.state.mode === 'timeline_frames') {
       this.state.is_playing = false;

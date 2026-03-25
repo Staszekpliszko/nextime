@@ -138,4 +138,89 @@ describe('LtcReader', () => {
     expect(reader.getStatus().connected).toBe(false);
     expect(reader.onTcReceived).toBeNull();
   });
+
+  // ── LTC Audio (Faza 41) ──────────────────────────────
+
+  it('connectLtcAudio ustawia connected i emituje ltc-audio-start', () => {
+    const spy = vi.fn();
+    reader.on('ltc-audio-start', spy);
+    reader.connectLtcAudio('device-1');
+    expect(reader.getStatus().connected).toBe(true);
+    expect(reader.isLtcAudioActive()).toBe(true);
+    expect(spy).toHaveBeenCalledWith('device-1');
+  });
+
+  it('connectLtcAudio bez deviceId wysyła null', () => {
+    const spy = vi.fn();
+    reader.on('ltc-audio-start', spy);
+    reader.connectLtcAudio();
+    expect(spy).toHaveBeenCalledWith(null);
+  });
+
+  it('disconnectLtcAudio rozłącza i emituje ltc-audio-stop', () => {
+    reader.setSource('ltc');
+    reader.connectLtcAudio();
+    const spy = vi.fn();
+    reader.on('ltc-audio-stop', spy);
+    reader.disconnectLtcAudio();
+    expect(reader.getStatus().connected).toBe(false);
+    expect(reader.isLtcAudioActive()).toBe(false);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('feedTc formatuje TC i aktualizuje lastTcFormatted', () => {
+    reader.feedTc(93079); // 1*3600*25 + 2*60*25 + 3*25 + 4 = 93079
+    const status = reader.getStatus();
+    expect(status.lastTcFrames).toBe(93079);
+    expect(status.lastTcFormatted).toBe('01:02:03:04');
+  });
+
+  it('formatFrames poprawnie formatuje klatki', () => {
+    expect(LtcReader.formatFrames(0, 25)).toBe('00:00:00:00');
+    expect(LtcReader.formatFrames(25, 25)).toBe('00:00:01:00');
+    expect(LtcReader.formatFrames(93079, 25)).toBe('01:02:03:04');
+    expect(LtcReader.formatFrames(2700000, 30)).toBe('25:00:00:00');
+  });
+
+  it('tc-lost emitowany po 2s bez feedTc (fake timers)', () => {
+    vi.useFakeTimers();
+    const ltcReader = new LtcReader({ enabled: true, source: 'ltc' });
+    const spy = vi.fn();
+    ltcReader.on('tc-lost', spy);
+    ltcReader.connectLtcAudio();
+
+    // Advance 1.9s — nie powinno emitować
+    vi.advanceTimersByTime(1900);
+    expect(spy).not.toHaveBeenCalled();
+
+    // Advance do 2.1s — powinno emitować
+    vi.advanceTimersByTime(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    ltcReader.destroy();
+    vi.useRealTimers();
+  });
+
+  it('feedTc resetuje timer tc-lost', () => {
+    vi.useFakeTimers();
+    const ltcReader = new LtcReader({ enabled: true, source: 'ltc' });
+    const spy = vi.fn();
+    ltcReader.on('tc-lost', spy);
+    ltcReader.connectLtcAudio();
+
+    // Advance 1.5s, potem feedTc — reset timera
+    vi.advanceTimersByTime(1500);
+    ltcReader.feedTc(100);
+
+    // Advance kolejne 1.5s (łącznie 3s od startu, ale 1.5s od feedTc)
+    vi.advanceTimersByTime(1500);
+    expect(spy).not.toHaveBeenCalled();
+
+    // Advance do 2.1s od feedTc
+    vi.advanceTimersByTime(600);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    ltcReader.destroy();
+    vi.useRealTimers();
+  });
 });

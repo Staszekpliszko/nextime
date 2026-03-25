@@ -276,6 +276,41 @@ contextBridge.exposeInMainWorld('nextime', {
   ltcIsMidiAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('nextime:ltcIsMidiAvailable'),
 
+  // ── LTC Audio (Faza 41) ──────────────────────────────────────
+
+  /** Podaje zdekodowany TC z AudioWorklet (renderer → main) */
+  feedLtcAudio: (frames: number): void => {
+    ipcRenderer.send('nextime:feedLtcAudio', frames);
+  },
+
+  /** Połącz LTC audio (uruchom AudioWorklet w rendererze) */
+  ltcConnectAudio: (deviceId?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('nextime:ltcConnectAudio', deviceId),
+
+  /** Rozłącz LTC audio */
+  ltcDisconnectAudio: (): Promise<void> =>
+    ipcRenderer.invoke('nextime:ltcDisconnectAudio'),
+
+  /** Lista wejść audio (enumerateDevices — z renderera) */
+  ltcListAudioInputs: (): Promise<Array<{ deviceId: string; label: string }>> =>
+    ipcRenderer.invoke('nextime:ltcListAudioInputs'),
+
+  /** Nasłuchuje na komendę uruchomienia LTC audio (main → renderer) */
+  onStartLtcAudio: (callback: (deviceId: string | null) => void): void => {
+    ipcRenderer.on('ltc-audio:start', (_event, deviceId: string | null) => callback(deviceId));
+  },
+
+  /** Nasłuchuje na komendę zatrzymania LTC audio (main → renderer) */
+  onStopLtcAudio: (callback: () => void): void => {
+    ipcRenderer.on('ltc-audio:stop', () => callback());
+  },
+
+  /** Usuwa listenery LTC audio (cleanup) */
+  removeLtcAudioListeners: (): void => {
+    ipcRenderer.removeAllListeners('ltc-audio:start');
+    ipcRenderer.removeAllListeners('ltc-audio:stop');
+  },
+
   // ── CRUD TextVariable (Faza 11) ──────────────────────────
   /** Pobiera text variables dla rundownu */
   getTextVariables: (rundownId: string): Promise<unknown[]> =>

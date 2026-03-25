@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { AllSettings, OscSettings, MidiSettings, AtemSettings, LtcSettings, GpiSettings, PtzSettings, ObsSettings, VmixSettings, VisionSettings } from '../../../electron/settings-manager';
 import { ObsSettingsTab } from './ObsSettingsTab';
 import { VmixSettingsTab } from './VmixSettingsTab';
 import { CompanionTab } from './CompanionTab';
 import { StreamDeckTab } from './StreamDeckTab';
+import { AudioLevelMeter } from './AudioLevelMeter';
+import { getLtcAudioBridge } from '../../audio/ltc-audio-bridge';
+import type { LtcAudioStatus } from '../../audio/ltc-audio-bridge';
 
 // ── Typy ────────────────────────────────────────────────
 
@@ -480,22 +483,55 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
   const [mtcStatus, setMtcStatus] = useState<string | null>(null);
   const [ltcStatus, setLtcStatus] = useState<{ lastTcFormatted: string | null; connected: boolean } | null>(null);
 
+  // ── LTC Audio (Faza 41) ────────────────────────────────
+  const [audioInputs, setAudioInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('');
+  const [ltcAudioStatus, setLtcAudioStatus] = useState<LtcAudioStatus | null>(null);
+  const [ltcAudioError, setLtcAudioError] = useState<string | null>(null);
+  const bridgeRef = useRef(getLtcAudioBridge());
+
   useEffect(() => {
     window.nextime.ltcIsMidiAvailable().then(setMidiAvailable).catch(() => setMidiAvailable(false));
     window.nextime.ltcListMtcPorts().then(setMtcPorts).catch(() => setMtcPorts([]));
     window.nextime.getLtcStatus().then(s => setLtcStatus({ lastTcFormatted: s.lastTcFormatted ?? null, connected: s.connected })).catch(() => {});
   }, []);
 
-  // Odświeżaj status TC co 500ms gdy połączony
+  // Pobierz listę urządzeń audio
   useEffect(() => {
-    if (source !== 'mtc') return;
+    if (source !== 'ltc') return;
+    bridgeRef.current.listAudioInputs()
+      .then(inputs => {
+        setAudioInputs(inputs);
+        if (inputs.length > 0 && !selectedAudioDevice) {
+          setSelectedAudioDevice(inputs[0]!.deviceId);
+        }
+      })
+      .catch(() => setAudioInputs([]));
+  }, [source]);
+
+  // Odświeżaj status TC co 500ms gdy połączony (MTC lub LTC audio)
+  useEffect(() => {
+    if (source !== 'mtc' && source !== 'ltc') return;
     const interval = setInterval(() => {
       window.nextime.getLtcStatus().then(s => {
         setLtcStatus({ lastTcFormatted: s.lastTcFormatted ?? null, connected: s.connected });
       }).catch(() => {});
+      // Status LTC audio bridge
+      if (source === 'ltc') {
+        setLtcAudioStatus(bridgeRef.current.getStatus());
+      }
     }, 500);
     return () => clearInterval(interval);
   }, [source]);
+
+  // Callback statusu z bridge
+  useEffect(() => {
+    const bridge = bridgeRef.current;
+    bridge.onStatusChanged = (status) => {
+      setLtcAudioStatus(status);
+    };
+    return () => { bridge.onStatusChanged = null; };
+  }, []);
 
   const handleSave = async () => {
     onSave({ source, enabled, mtcPortIndex });
@@ -507,7 +543,6 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
     const result = await window.nextime.ltcConnectMtc(mtcPortIndex);
     if (result.ok) {
       setMtcStatus('Połączono');
-      // Ustaw źródło na MTC automatycznie
       setSource('mtc');
       await window.nextime.setLtcSource('mtc');
     } else {
@@ -519,6 +554,57 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
     await window.nextime.ltcDisconnectMtc();
     setMtcStatus('Rozłączono');
     setLtcStatus(null);
+  };
+
+  // ── LTC Audio connect/disconnect ───────────────────────
+
+  const handleConnectLtcAudio = async () => {
+    setLtcAudioError(null);
+    const bridge = bridgeRef.current;
+    const deviceId = selectedAudioDevice || undefined;
+    const result = await bridge.start(deviceId);
+    if (result.ok) {
+      // Powiadom main process
+      await window.nextime.ltcConnectAudio(deviceId);
+      setLtcAudioStatus(bridge.getStatus());
+    } else {
+      setLtcAudioError(result.error ?? 'Nieznany błąd');
+    }
+  };
+
+  const handleDisconnectLtcAudio = async () => {
+    const bridge = bridgeRef.current;
+    await bridge.stop();
+    await window.nextime.ltcDisconnectAudio();
+    setLtcAudioStatus(bridge.getStatus());
+    setLtcAudioError(null);
+  };
+
+  // Cleanup przy odmontowywaniu
+  useEffect(() => {
+    return () => {
+      // Nie zatrzymujemy bridge przy odmontowywaniu — działa globalnie
+    };
+  }, []);
+
+  // ── Status signal helpers ──────────────────────────────
+
+  const signalStatusLabel = (status: string) => {
+    switch (status) {
+      case 'synced': return 'Zsynchronizowany';
+      case 'weak': return 'Słaby sygnał';
+      case 'lost': return 'Brak sygnału';
+      default: return 'Brak połączenia';
+    }
+  };
+
+  const signalStatusColor = (status: string) => {
+    switch (status) {
+      case 'synced': return 'text-green-400';
+      case 'weak': return 'text-yellow-400';
+      case 'lost': return 'text-red-400';
+      default: return 'text-slate-500';
+    }
   };
 
   return (
@@ -539,6 +625,96 @@ function LtcTab({ settings, onSave }: { settings: LtcSettings; onSave: (v: Parti
           <option value="manual">Ręczny</option>
         </select>
       </FieldRow>
+
+      {/* Sekcja LTC Audio — widoczna gdy source = ltc */}
+      {source === 'ltc' && (
+        <>
+          <div className="mb-3 px-3 py-2 bg-blue-600/10 border border-blue-600/20 rounded text-xs text-blue-300">
+            Podłącz sygnał LTC (SMPTE 12M) kablem XLR/TRS do wejścia karty dźwiękowej.
+            Wybierz właściwe wejście audio i kliknij „Połącz".
+          </div>
+
+          <FieldRow label="Wejście audio">
+            {audioInputs.length > 0 ? (
+              <select
+                value={selectedAudioDevice}
+                onChange={e => setSelectedAudioDevice(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                {audioInputs.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm text-slate-500">Brak dostępnych wejść audio</span>
+            )}
+          </FieldRow>
+
+          <FieldRow label="Połączenie LTC">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleConnectLtcAudio}
+                disabled={ltcAudioStatus?.running === true}
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors"
+              >
+                Połącz
+              </button>
+              <button
+                onClick={handleDisconnectLtcAudio}
+                disabled={ltcAudioStatus?.running !== true}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors"
+              >
+                Rozłącz
+              </button>
+              {ltcAudioStatus?.running && (
+                <span className={`text-xs ${signalStatusColor(ltcAudioStatus.signalStatus)}`}>
+                  {signalStatusLabel(ltcAudioStatus.signalStatus)}
+                </span>
+              )}
+            </div>
+          </FieldRow>
+
+          {ltcAudioError && (
+            <div className="mb-3 px-3 py-2 bg-red-600/20 border border-red-600/30 rounded text-xs text-red-400">
+              {ltcAudioError}
+            </div>
+          )}
+
+          {ltcAudioStatus?.running && (
+            <>
+              <FieldRow label="Poziom sygnału">
+                <AudioLevelMeter
+                  analyserNode={bridgeRef.current.getAnalyserNode()}
+                  width={200}
+                  height={24}
+                />
+              </FieldRow>
+
+              {ltcAudioStatus.lastTcFormatted && (
+                <FieldRow label="Aktualny TC">
+                  <span className="text-sm font-mono text-green-400 bg-slate-900 px-3 py-1.5 rounded">
+                    {ltcAudioStatus.lastTcFormatted}
+                  </span>
+                </FieldRow>
+              )}
+
+              {ltcAudioStatus.fps !== null && (
+                <FieldRow label="Wykryty FPS">
+                  <span className="text-sm text-slate-300">{ltcAudioStatus.fps}</span>
+                </FieldRow>
+              )}
+
+              <FieldRow label="Jakość sygnału">
+                <span className={`text-sm ${ltcAudioStatus.errorRate > 0.1 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {ltcAudioStatus.errorRate > 0.1
+                    ? `Słaba (${(ltcAudioStatus.errorRate * 100).toFixed(1)}% błędów)`
+                    : 'Dobra'}
+                </span>
+              </FieldRow>
+            </>
+          )}
+        </>
+      )}
 
       {/* Sekcja MTC — widoczna gdy source = mtc */}
       {source === 'mtc' && (

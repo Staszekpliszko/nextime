@@ -103,6 +103,15 @@ export class LtcReader extends EventEmitter {
   private readonly MidiInputClass: MidiInputConstructor | null;
   private readonly midiLoadError: string | null;
 
+  /** Czy LTC audio jest aktywne (renderer uruchomił AudioWorklet) */
+  private _ltcAudioActive = false;
+  /** ID urządzenia audio LTC */
+  private _ltcAudioDeviceId: string | null = null;
+  /** Timer timeout brak sygnału LTC audio (2s) */
+  private _ltcSignalLostTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Timeout brak sygnału — 2 sekundy */
+  private readonly LTC_SIGNAL_LOST_TIMEOUT = 2000;
+
   /** Callback do testów — przechwytuje tc-received */
   onTcReceived: ((frames: number) => void) | null = null;
 
@@ -238,15 +247,50 @@ export class LtcReader extends EventEmitter {
       return;
     }
 
-    // LTC audio — placeholder (wymaga dedykowanego hardware/library)
-    console.log(`[LtcReader] Łączę z ${this.config.source.toUpperCase()} (placeholder)...`);
+    // LTC audio — uruchom dekodowanie w rendererze przez IPC
+    if (this.config.source === 'ltc') {
+      this.connectLtcAudio(this._ltcAudioDeviceId ?? undefined);
+      return;
+    }
+  }
+
+  /** Łączy LTC audio — wysyła IPC do renderera żeby uruchomił AudioWorklet */
+  connectLtcAudio(deviceId?: string): void {
+    this._ltcAudioDeviceId = deviceId ?? null;
+    this._ltcAudioActive = true;
     this._connected = true;
+
+    // Emit IPC event — main.ts nasłuchuje i wysyła do renderera
+    this.emit('ltc-audio-start', deviceId ?? null);
     this.emit('connected');
-    console.log(`[LtcReader] Połączono z ${this.config.source.toUpperCase()} (placeholder)`);
+
+    // Uruchom timer brak sygnału
+    this.startLtcSignalLostTimer();
+
+    console.log(`[LtcReader] LTC audio uruchomione${deviceId ? ` (device: ${deviceId})` : ''}`);
+  }
+
+  /** Rozłącza LTC audio — wysyła IPC do renderera */
+  disconnectLtcAudio(): void {
+    this.clearLtcSignalLostTimer();
+    this._ltcAudioActive = false;
+
+    if (this._connected && this.config.source === 'ltc') {
+      this._connected = false;
+      this.emit('ltc-audio-stop');
+      this.emit('disconnected');
+      console.log('[LtcReader] LTC audio zatrzymane');
+    }
+  }
+
+  /** Czy LTC audio jest aktywne */
+  isLtcAudioActive(): boolean {
+    return this._ltcAudioActive;
   }
 
   /** Rozłącza zewnętrzne źródło */
   disconnect(): void {
+    this.disconnectLtcAudio();
     this.disconnectMtc();
     this._connected = false;
     this._lastTcFrames = null;
@@ -276,6 +320,13 @@ export class LtcReader extends EventEmitter {
 
     this._lastTcFrames = frames;
     this._lastReceivedAt = Date.now();
+    // Formatuj TC (zakładamy 25fps jeśli nie znamy, bo to standard EU)
+    this._lastTcFormatted = LtcReader.formatFrames(frames, 25);
+
+    // Reset signal lost timer (LTC audio)
+    if (this._ltcAudioActive) {
+      this.resetLtcSignalLostTimer();
+    }
 
     this.emit('tc-received', frames);
     if (this.onTcReceived) {
@@ -315,10 +366,21 @@ export class LtcReader extends EventEmitter {
 
   /** Cleanup */
   destroy(): void {
+    this.clearLtcSignalLostTimer();
     this.disconnect();
     this.onTcReceived = null;
     this.mtcParser.onTimecode = null;
     this.removeAllListeners();
+  }
+
+  /** Formatuje liczbę klatek na HH:MM:SS:FF */
+  static formatFrames(frames: number, fps: number): string {
+    const nomFps = Math.round(fps);
+    const h = Math.floor(frames / (nomFps * 3600));
+    const m = Math.floor((frames % (nomFps * 3600)) / (nomFps * 60));
+    const s = Math.floor((frames % (nomFps * 60)) / nomFps);
+    const f = Math.floor(frames % nomFps);
+    return [h, m, s, f].map(n => String(n).padStart(2, '0')).join(':');
   }
 
   // ── Prywatne ────────────────────────────────────────────
@@ -344,6 +406,34 @@ export class LtcReader extends EventEmitter {
 
     if (this.onTcReceived) {
       this.onTcReceived(totalFrames);
+    }
+  }
+
+  // ── LTC audio signal lost timer ─────────────────────────
+
+  private startLtcSignalLostTimer(): void {
+    this.clearLtcSignalLostTimer();
+    this._ltcSignalLostTimer = setTimeout(() => {
+      if (this._ltcAudioActive) {
+        this.emit('tc-lost');
+        console.log('[LtcReader] LTC audio: brak sygnału (timeout 2s)');
+        // Kontynuuj timer
+        this.startLtcSignalLostTimer();
+      }
+    }, this.LTC_SIGNAL_LOST_TIMEOUT);
+  }
+
+  private resetLtcSignalLostTimer(): void {
+    this.clearLtcSignalLostTimer();
+    if (this._ltcAudioActive) {
+      this.startLtcSignalLostTimer();
+    }
+  }
+
+  private clearLtcSignalLostTimer(): void {
+    if (this._ltcSignalLostTimer) {
+      clearTimeout(this._ltcSignalLostTimer);
+      this._ltcSignalLostTimer = null;
     }
   }
 }

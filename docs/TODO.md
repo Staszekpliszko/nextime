@@ -1883,3 +1883,101 @@ Po Fazie 37: **1030 testów**, pełna paryteta z CuePilot Pro + killer features 
 
 **Statystyki Fazy 40:** 17 nowych testów, 1 nowy plik testów
 **ŁĄCZNIE:** 1085 testów, 93 pliki testów
+
+---
+
+## Faza 41 — LTC Audio Reader (dekoder timecodu z karty dźwiękowej) [UKOŃCZONA]
+
+- [x] **41-A: AudioWorklet — dekoder biphasowy SMPTE 12M** (KRYTYCZNY)
+  - Nowy plik: `src/audio/ltc-decoder.worklet.ts`
+  - AudioWorkletProcessor + eksportowany `LtcDecoderCore` (do testów unit)
+  - Zero-crossing detection z hysteresis (HYSTERESIS_THRESHOLD = 0.02)
+  - Adaptacyjny bit clock recovery (running average + largest-gap clustering)
+  - BIT_PERIOD_TOLERANCE = 0.3 (30% tolerancja)
+  - Składanie 80-bitowych klatek LTC, sync word (0011 1111 1111 1101)
+  - Dekodowanie BCD → HH:MM:SS:FF + fps (24/25/29.97/30)
+  - Obsługa drop-frame flag (bit 10)
+  - Obsługa reverse playback (sync word od tyłu)
+  - MIN_VALID_FRAMES = 3 do stabilnego sync
+  - Polyfill AudioWorkletProcessor dla Node.js (testy)
+
+- [x] **41-B: LtcAudioBridge — most renderer ↔ main process** (WYSOKI)
+  - Nowy plik: `src/audio/ltc-audio-bridge.ts`
+  - `start(deviceId?)` — AudioContext + getUserMedia + AudioWorkletNode
+  - `stop()` — zatrzymaj strumień i AudioContext
+  - `listAudioInputs()` → lista urządzeń (enumerateDevices, audioinput)
+  - getUserMedia z: echoCancellation: false, noiseSuppression: false, autoGainControl: false
+  - AudioWorkletNode podłączony do source (NIE do destination)
+  - Debounce: nie wysyłaj tego samego TC
+  - AnalyserNode do peak metering
+  - Signal lost timer (2s) z statusem
+  - Singleton globalny `getLtcAudioBridge()`
+  - Komunikacja: `window.nextime.feedLtcAudio(frames)` → IPC → LtcReader.feedTc()
+
+- [x] **41-C: IPC — nowe handlery** (WYSOKI)
+  - `electron/main.ts`: nextime:feedLtcAudio, nextime:ltcConnectAudio, nextime:ltcDisconnectAudio, nextime:ltcListAudioInputs
+  - `electron/preload.ts`: feedLtcAudio(), ltcConnectAudio(), ltcDisconnectAudio(), ltcListAudioInputs(), onStartLtcAudio(), onStopLtcAudio(), removeLtcAudioListeners()
+  - `src/types/electron.d.ts`: typy NextimeApi
+  - Eventy ltc-audio:start / ltc-audio:stop (main → renderer)
+
+- [x] **41-D: LtcReader — podpięcie trybu 'ltc'** (WYSOKI)
+  - `electron/senders/ltc-reader.ts`:
+    - Zamieniono placeholder w connect() na IPC do renderer (connectLtcAudio)
+    - Nowe metody: connectLtcAudio(deviceId?), disconnectLtcAudio(), isLtcAudioActive()
+    - Statyczna metoda formatFrames(frames, fps)
+    - feedTc() resetuje signal lost timer i formatuje TC
+    - Signal lost timer (2s) — emit 'tc-lost' po timeout
+    - disconnect() teraz wywołuje disconnectLtcAudio()
+
+- [x] **41-E: Settings Panel — sekcja LTC audio** (ŚREDNI)
+  - `src/components/SettingsPanel/SettingsPanel.tsx`:
+    - Gdy source === 'ltc': dropdown "Wejście audio", Połącz/Rozłącz
+    - Status: aktualny TC (HH:MM:SS:FF), wykryty FPS, jakość sygnału
+    - Statusy sygnału: Zsynchronizowany/Słaby sygnał/Brak sygnału (z kolorami)
+    - Peak meter (AudioLevelMeter)
+    - Tekst pomocniczy po polsku
+
+- [x] **41-F: AudioLevelMeter — peak meter** (NISKI)
+  - Nowy plik: `src/components/SettingsPanel/AudioLevelMeter.tsx`
+  - Canvas 200×24px, AnalyserNode → getByteFrequencyData → bar
+  - Gradient: zielony → żółty → czerwony
+  - Znaczniki dB: -12dB, -6dB, 0dB
+  - requestAnimationFrame ~30fps
+
+- [x] **41-G: Edge cases** (NISKI)
+  - Brak sygnału >2s → emit 'tc-lost', status "Brak sygnału"
+  - Słaby sygnał (error rate >10%) → status "Słaby sygnał"
+  - Uprawnienia mikrofonu — obsługa odmowy z czytelnym komunikatem
+  - AudioContext.state === 'suspended' → resume()
+  - navigator.mediaDevices.ondevicechange → aktualizuj listę
+
+- [x] **41-H: Testy** (31 nowych testów)
+  - tests/unit/ltc-decoder.test.ts — 13 testów:
+    - Syntetyczny generator sygnału LTC (Manchester encoding)
+    - Test 25fps, 30fps, 24fps, 29.97 drop-frame
+    - Test BCD → HH:MM:SS:FF (TC 23:59:59:24)
+    - Test MIN_VALID_FRAMES (za mało klatek → brak emisji)
+    - Test reverse playback (sync word od tyłu)
+    - Test hysteresis (szum poniżej progu)
+    - Test uszkodzonego sync word
+    - Test reset stanu dekodera
+    - Test status callback "synced"
+    - Test 44100Hz i 96000Hz sample rate
+  - tests/unit/ltc-audio-bridge.test.ts — 11 testów:
+    - Mock AudioContext + getUserMedia + AudioWorkletNode
+    - Test listAudioInputs
+    - Test start/stop lifecycle
+    - Test podwójny start
+    - Test timecode message handling
+    - Test debounce (duplikaty TC)
+    - Test level i status messages
+    - Test getUserMedia constraints (bez efektów audio)
+  - tests/unit/ltc-reader.test.ts — 7 nowych testów:
+    - Test connectLtcAudio / disconnectLtcAudio
+    - Test feedTc formatuje TC
+    - Test formatFrames
+    - Test tc-lost po 2s (fake timers)
+    - Test feedTc resetuje timer tc-lost
+
+**Statystyki Fazy 41:** 31 nowych testów, 2 nowe pliki testów, 3 nowe pliki źródłowe
+**ŁĄCZNIE:** 1116 testów, 95 plików testów

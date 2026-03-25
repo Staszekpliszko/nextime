@@ -374,7 +374,7 @@ Resize działa tylko z prawej strony — brakuje trim z lewej (skracanie począt
 
 ---
 
-## FAZA 41 — LTC Audio Reader (prawdziwy dekoder timecodu z karty dźwiękowej)
+## FAZA 41 — LTC Audio Reader (prawdziwy dekoder timecodu z karty dźwiękowej) [UKOŃCZONA]
 **Braki:** #8 (LTC audio reader)
 **Zależności:** Faza 22 (LtcReader placeholder + MTC parser już istnieją)
 **Deps npm:** brak nowych (Web Audio API wbudowane w Chromium/Electron)

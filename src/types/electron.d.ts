@@ -158,6 +158,15 @@ export interface NextimeApi {
   ltcDisconnectMtc(): Promise<void>;
   ltcIsMidiAvailable(): Promise<boolean>;
 
+  // ── LTC Audio (Faza 41) ─────────────────────────────────
+  feedLtcAudio(frames: number): void;
+  ltcConnectAudio(deviceId?: string): Promise<{ ok: boolean; error?: string }>;
+  ltcDisconnectAudio(): Promise<void>;
+  ltcListAudioInputs(): Promise<Array<{ deviceId: string; label: string }>>;
+  onStartLtcAudio(callback: (deviceId: string | null) => void): void;
+  onStopLtcAudio(callback: () => void): void;
+  removeLtcAudioListeners(): void;
+
   // ── Private Notes (Faza 13) ──────────────────────────────
   getPrivateNotes(rundownId: string): Promise<PrivateNote[]>;
   upsertPrivateNote(cueId: string, content: string): Promise<PrivateNote>;

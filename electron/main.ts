@@ -969,6 +969,53 @@ function registerIpcHandlers(): void {
     return senderManager.ltc.isMidiAvailable();
   });
 
+  // ── LTC Audio (Faza 41) ──────────────────────────────────────
+
+  // Renderer → Main: zdekodowany TC z AudioWorklet
+  ipcMain.on('nextime:feedLtcAudio', (_event, frames: number) => {
+    if (!senderManager) return;
+    senderManager.ltc.feedTc(frames);
+    // Przekaż do engine jeśli źródło = ltc
+    if (engine) {
+      engine.feedExternalTc(frames);
+    }
+  });
+
+  // Połącz LTC audio — uruchom AudioWorklet w rendererze
+  ipcMain.handle('nextime:ltcConnectAudio', (_event, deviceId?: string) => {
+    if (!senderManager) return { ok: false, error: 'SenderManager nie zainicjalizowany' };
+    senderManager.ltc.connectLtcAudio(deviceId);
+    return { ok: true };
+  });
+
+  // Rozłącz LTC audio
+  ipcMain.handle('nextime:ltcDisconnectAudio', () => {
+    if (!senderManager) return;
+    senderManager.ltc.disconnectLtcAudio();
+  });
+
+  // Lista wejść audio — przekazujemy do renderera (getUserMedia działa w rendererze)
+  // Renderer sam obsługuje enumerateDevices, ale IPC wrapper jest dla spójności
+  ipcMain.handle('nextime:ltcListAudioInputs', () => {
+    // Urządzenia audio wymieniane po stronie renderera
+    // Ten handler istnieje dla przyszłego użycia (np. przekazywanie z main)
+    return [];
+  });
+
+  // Nasłuchuj eventów z LtcReader i przekazuj do renderera
+  if (senderManager) {
+    senderManager.ltc.on('ltc-audio-start', (deviceId: string | null) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('ltc-audio:start', deviceId);
+      }
+    });
+    senderManager.ltc.on('ltc-audio-stop', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('ltc-audio:stop');
+      }
+    });
+  }
+
   // ── CRUD TextVariable (Faza 11) ──────────────────────────────
 
   ipcMain.handle('nextime:getTextVariables', (_event, rundownId: string) => {
